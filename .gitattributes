@@ -1,0 +1,7 @@
+# Protected local files — these NEVER get overwritten by a merge from main (Base44 export).
+# Requires the "ours" merge driver to be registered once per machine — see SETUP-GUIDE.md.
+
+server/index.js                          merge=ours
+src/pages/POSTerminal.jsx                 merge=ours
+src/components/pos/BluetoothPrinterPanel.jsx  merge=ours
+src/components/pos/ReceiptPrint.jsx       merge=ours
