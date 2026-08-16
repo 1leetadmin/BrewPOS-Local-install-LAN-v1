@@ -26,6 +26,29 @@ jobs:
       - name: Install app dependencies
         run: npm install
 
+      - name: Fix electron/electron-builder dependency placement
+        shell: pwsh
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            let changed = false;
+            for (const pkg of ['electron', 'electron-builder']) {
+              if (p.dependencies && p.dependencies[pkg]) {
+                p.devDependencies = p.devDependencies || {};
+                p.devDependencies[pkg] = p.dependencies[pkg];
+                delete p.dependencies[pkg];
+                changed = true;
+              }
+            }
+            if (!p.author) { p.author = 'Headshot Coffee'; changed = true; }
+            if (!p.description) { p.description = 'BrewPOS — café point-of-sale system for Headshot Coffee'; changed = true; }
+            if (changed) {
+              fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+              console.log('Fixed package.json (electron-builder requires electron/electron-builder in devDependencies).');
+            }
+          "
+
       - name: Install local server dependencies
         working-directory: server
         run: npm install
