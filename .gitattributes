@@ -1,0 +1,19 @@
+# Protected local files — these NEVER get overwritten by a merge from main (Base44 export).
+# Requires the "ours" merge driver to be registered once per machine — see SETUP-GUIDE.md.
+
+server/index.js                          merge=ours
+server/package.json                      merge=ours
+src/pages/POSTerminal.jsx                 merge=ours
+src/components/pos/BluetoothPrinterPanel.jsx  merge=ours
+src/components/pos/ReceiptPrint.jsx       merge=ours
+
+# --- Fully-local, no-internet, no-Base44 data/auth layer (added 2026-08-16) ---
+server/data-root.js                      merge=ours
+server/local-db.js                       merge=ours
+server/local-auth.js                     merge=ours
+server/local-uploads.js                  merge=ours
+server/local-cache-fallback.js           merge=ours
+server/migration-seed/**                 merge=ours
+src/api/base44Client.js                  merge=ours
+src/lib/AuthContext.jsx                  merge=ours
+src/pages/Login.jsx                      merge=ours

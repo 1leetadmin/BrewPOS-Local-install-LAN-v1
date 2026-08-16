@@ -8,9 +8,11 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@thiagoelg/node-printer": "^1.0.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "usb": "^2.0.0"
+  },
+  "optionalDependencies": {
+    "@thiagoelg/node-printer": "^0.6.2"
   }
 }
