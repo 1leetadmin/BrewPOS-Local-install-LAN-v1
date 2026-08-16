@@ -57,7 +57,7 @@ jobs:
         id: build
         shell: pwsh
         run: |
-          npm run electron:build 2>&1 | Tee-Object -FilePath build-log.txt
+          npm run electron:build -- --publish never 2>&1 | Tee-Object -FilePath build-log.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Publish log for debugging (always)
