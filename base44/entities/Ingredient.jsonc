@@ -1,0 +1,80 @@
+{
+  "name": "Ingredient",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Ingredient name"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "milk",
+        "beans",
+        "alt_milk",
+        "cups",
+        "slushy_mix",
+        "syrups",
+        "ice",
+        "food",
+        "other"
+      ],
+      "description": "Ingredient category"
+    },
+    "unit": {
+      "type": "string",
+      "description": "Unit of measure (L, ml, kg, g, ea, etc)"
+    },
+    "cost_per_unit": {
+      "type": "number",
+      "description": "Cost per unit in local currency"
+    },
+    "current_stock": {
+      "type": "number",
+      "default": 0,
+      "description": "Current stock level"
+    },
+    "min_stock": {
+      "type": "number",
+      "default": 0,
+      "description": "Minimum stock threshold for reorder alerts"
+    },
+    "supplier": {
+      "type": "string",
+      "description": "Supplier name"
+    },
+    "event_id": {
+      "type": "string",
+      "description": "Optional event this ingredient is associated with"
+    },
+    "event_name": {
+      "type": "string",
+      "description": "Denormalized event name"
+    },
+    "custom_fields": {
+      "type": "array",
+      "description": "Custom fields for this ingredient",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "category",
+    "unit",
+    "cost_per_unit"
+  ]
+}

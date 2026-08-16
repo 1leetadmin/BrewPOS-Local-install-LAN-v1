@@ -1,0 +1,63 @@
+{
+  "name": "OrderItem",
+  "type": "object",
+  "properties": {
+    "order_id": {
+      "type": "string",
+      "description": "ID of the parent Order record"
+    },
+    "order_number": {
+      "type": "string",
+      "description": "Denormalized order number for convenience"
+    },
+    "menu_item_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "unit_price": {
+      "type": "number",
+      "description": "Per-unit price including modifier adjustments"
+    },
+    "modifiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "option": {
+            "type": "string"
+          },
+          "price_adjustment": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    },
+    "placed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this item was placed as part of the order"
+    },
+    "printed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this item's label was confirmed fully printed via the BLE ready/gap-feed signal"
+    }
+  },
+  "required": [
+    "order_id",
+    "name",
+    "unit_price",
+    "placed_at"
+  ]
+}

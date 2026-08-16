@@ -1,0 +1,49 @@
+{
+  "name": "ModifierPreset",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of this modifier preset (e.g. 'Milk Options')"
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "List of modifier groups in this preset",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "multi_select": {
+            "type": "boolean",
+            "default": false,
+            "description": "Allow multiple options to be selected at once"
+          },
+          "max_selections": {
+            "type": "number",
+            "default": 0,
+            "description": "Max number of options that can be selected (0 = no limit)"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "price_adjustment": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

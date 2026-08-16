@@ -1,0 +1,44 @@
+{
+  "name": "MenuPageLayout",
+  "type": "object",
+  "properties": {
+    "page_index": {
+      "type": "number",
+      "description": "Page number 0-5"
+    },
+    "label": {
+      "type": "string",
+      "description": "Display label for this page tab"
+    },
+    "items_per_page": {
+      "type": "number",
+      "default": 20,
+      "description": "How many tiles to show (9-60)"
+    },
+    "color": {
+      "type": "string",
+      "description": "Accent color for this page tab"
+    },
+    "slots": {
+      "type": "array",
+      "description": "Ordered list of menu item IDs (or null for empty slot)",
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "slot_colors": {
+      "type": "object",
+      "description": "Maps slot index (as string) to a background hex color for visual grouping of tile blocks",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "page_index",
+    "label"
+  ]
+}

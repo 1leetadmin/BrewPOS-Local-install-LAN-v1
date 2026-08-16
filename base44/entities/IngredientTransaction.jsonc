@@ -1,0 +1,71 @@
+{
+  "name": "IngredientTransaction",
+  "type": "object",
+  "properties": {
+    "ingredient_id": {
+      "type": "string",
+      "description": "ID of the ingredient"
+    },
+    "ingredient_name": {
+      "type": "string",
+      "description": "Denormalized ingredient name"
+    },
+    "category": {
+      "type": "string",
+      "description": "Denormalized ingredient category"
+    },
+    "unit": {
+      "type": "string",
+      "description": "Denormalized unit of measure"
+    },
+    "quantity": {
+      "type": "number",
+      "description": "Quantity used, purchased, or wasted (always positive)"
+    },
+    "transaction_type": {
+      "type": "string",
+      "enum": [
+        "purchase",
+        "usage",
+        "wastage",
+        "adjustment"
+      ],
+      "description": "Type of transaction"
+    },
+    "cost_per_unit": {
+      "type": "number",
+      "description": "Cost per unit at time of transaction"
+    },
+    "total_cost": {
+      "type": "number",
+      "description": "Total cost = quantity * cost_per_unit"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the transaction occurred"
+    },
+    "event_id": {
+      "type": "string",
+      "description": "Optional event ID for event-based filtering"
+    },
+    "event_name": {
+      "type": "string",
+      "description": "Denormalized event name"
+    },
+    "supplier": {
+      "type": "string",
+      "description": "Supplier/vendor name for this transaction"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "ingredient_id",
+    "ingredient_name",
+    "quantity",
+    "transaction_type",
+    "date"
+  ]
+}

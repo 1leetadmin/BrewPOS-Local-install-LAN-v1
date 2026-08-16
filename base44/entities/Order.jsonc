@@ -1,0 +1,94 @@
+{
+  "name": "Order",
+  "type": "object",
+  "properties": {
+    "order_number": {
+      "type": "string",
+      "description": "Sequential order number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "completed",
+        "voided",
+        "refunded"
+      ],
+      "default": "open"
+    },
+    "item_count": {
+      "type": "number",
+      "description": "Number of individual OrderItem records belonging to this order"
+    },
+    "subtotal": {
+      "type": "number"
+    },
+    "tax_total": {
+      "type": "number"
+    },
+    "discount_amount": {
+      "type": "number"
+    },
+    "discount_type": {
+      "type": "string",
+      "enum": [
+        "percentage",
+        "fixed",
+        "none"
+      ],
+      "default": "none"
+    },
+    "discount_id": {
+      "type": "string",
+      "description": "ID of the Discount applied to this order"
+    },
+    "discount_name": {
+      "type": "string",
+      "description": "Denormalized discount name"
+    },
+    "total": {
+      "type": "number"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "card",
+        "eftpos",
+        "mobile",
+        "split",
+        "other"
+      ],
+      "default": "cash"
+    },
+    "amount_paid": {
+      "type": "number"
+    },
+    "change_due": {
+      "type": "number"
+    },
+    "cash_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Cash portion of a split payment"
+    },
+    "card_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Card portion of a split payment"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "completed_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "order_number",
+    "total"
+  ]
+}

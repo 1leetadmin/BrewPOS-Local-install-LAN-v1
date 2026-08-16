@@ -1,0 +1,89 @@
+{
+  "name": "StaffUser",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Staff display name shown on lock screen"
+    },
+    "pin_hash": {
+      "type": "string",
+      "description": "SHA-256 hashed PIN \u2014 never stored as plain text"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "staff"
+      ],
+      "default": "staff",
+      "description": "Admin role always has full access to all screens"
+    },
+    "pin_length": {
+      "type": "number",
+      "default": 4,
+      "description": "Expected PIN length (4-8 digits)"
+    },
+    "hourly_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Hourly pay rate used for timekeeping labor cost tracking"
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Per-screen access toggles (ignored for admin role \u2014 admins always have full access)",
+      "properties": {
+        "pos_terminal": {
+          "type": "boolean",
+          "default": true
+        },
+        "dashboard": {
+          "type": "boolean",
+          "default": false
+        },
+        "orders": {
+          "type": "boolean",
+          "default": true
+        },
+        "menu_items": {
+          "type": "boolean",
+          "default": false
+        },
+        "ingredients": {
+          "type": "boolean",
+          "default": false
+        },
+        "settings": {
+          "type": "boolean",
+          "default": false
+        },
+        "reports": {
+          "type": "boolean",
+          "default": false
+        },
+        "cds": {
+          "type": "boolean",
+          "default": false
+        },
+        "staff_management": {
+          "type": "boolean",
+          "default": false
+        },
+        "timekeeping": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Soft-disable a user without deleting"
+    }
+  },
+  "required": [
+    "name",
+    "pin_hash",
+    "role"
+  ]
+}

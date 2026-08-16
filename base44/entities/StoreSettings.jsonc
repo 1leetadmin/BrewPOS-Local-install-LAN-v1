@@ -1,0 +1,891 @@
+{
+  "name": "StoreSettings",
+  "type": "object",
+  "properties": {
+    "store_name": {
+      "type": "string",
+      "default": "My Store"
+    },
+    "address": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string",
+      "description": "Website or contact email shown in the receipt header"
+    },
+    "tax_rate": {
+      "type": "number",
+      "default": 8.5
+    },
+    "tax_label": {
+      "type": "string",
+      "default": "GST",
+      "description": "Tax label shown on receipts, e.g. GST, VAT, Tax"
+    },
+    "tax_inclusive": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, menu prices include tax and the receipt breaks tax out of the total"
+    },
+    "gst_number": {
+      "type": "string",
+      "default": "056-696-652",
+      "description": "Tax registration number shown on receipts"
+    },
+    "currency_symbol": {
+      "type": "string",
+      "default": "$"
+    },
+    "receipt_footer": {
+      "type": "string",
+      "default": "Thank you for your visit!"
+    },
+    "order_counter": {
+      "type": "number",
+      "default": 0,
+      "description": "Cycles 0-999 for sequential order numbers"
+    },
+    "auto_print_labels": {
+      "type": "boolean",
+      "default": true
+    },
+    "label_preview_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show label preview modal before printing"
+    },
+    "label_qr_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Show a QR code on drink labels"
+    },
+    "label_qr_id": {
+      "type": "string",
+      "default": "",
+      "description": "ID of the QR code from the qr_codes library to display on drink labels"
+    },
+    "qr_codes": {
+      "type": "array",
+      "description": "Library of QR codes available for drink labels and other uses",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name for this QR code"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image"
+            ],
+            "description": "text = generate QR from text field; image = use uploaded image_url"
+          },
+          "text": {
+            "type": "string",
+            "description": "Text or URL to encode when type=text"
+          },
+          "image_url": {
+            "type": "string",
+            "description": "Uploaded QR code image URL when type=image"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      }
+    },
+    "voice_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "voice_language": {
+      "type": "string",
+      "default": "en-US"
+    },
+    "pin_lock_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Global on/off for PIN-based access control"
+    },
+    "auto_lock_minutes": {
+      "type": "number",
+      "default": 5,
+      "description": "Inactivity auto-lock timeout in minutes (1-45)"
+    },
+    "master_recovery_password_hash": {
+      "type": "string",
+      "description": "SHA-256 hashed master recovery password for PIN resets"
+    },
+    "admin_only_screens": {
+      "type": "object",
+      "description": "Maps permission keys to true when that screen is restricted to admin-only access.",
+      "properties": {
+        "pos_terminal": {
+          "type": "boolean",
+          "default": false
+        },
+        "orders": {
+          "type": "boolean",
+          "default": false
+        },
+        "menu_items": {
+          "type": "boolean",
+          "default": false
+        },
+        "ingredients": {
+          "type": "boolean",
+          "default": false
+        },
+        "dashboard": {
+          "type": "boolean",
+          "default": false
+        },
+        "settings": {
+          "type": "boolean",
+          "default": false
+        },
+        "reports": {
+          "type": "boolean",
+          "default": false
+        },
+        "cds": {
+          "type": "boolean",
+          "default": false
+        },
+        "staff_management": {
+          "type": "boolean",
+          "default": false
+        },
+        "timekeeping": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "description": "User-editable colour theme + per-block modifier button colours",
+      "properties": {
+        "active_preset": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark",
+            "high_contrast",
+            "ocean",
+            "sunset",
+            "forest",
+            "lavender",
+            "midnight",
+            "rose",
+            "sand",
+            "mint",
+            "slate",
+            "coral",
+            "custom"
+          ],
+          "default": "light"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark"
+          ],
+          "default": "light"
+        },
+        "colors": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string"
+            },
+            "foreground": {
+              "type": "string"
+            },
+            "card": {
+              "type": "string"
+            },
+            "card_foreground": {
+              "type": "string"
+            },
+            "primary": {
+              "type": "string"
+            },
+            "primary_foreground": {
+              "type": "string"
+            },
+            "secondary": {
+              "type": "string"
+            },
+            "muted": {
+              "type": "string"
+            },
+            "muted_foreground": {
+              "type": "string"
+            },
+            "border": {
+              "type": "string"
+            },
+            "destructive": {
+              "type": "string"
+            }
+          }
+        },
+        "accent_swatches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "modifier_button_default": {
+          "type": "object",
+          "properties": {
+            "selected": {
+              "type": "object",
+              "properties": {
+                "background": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            },
+            "unselected": {
+              "type": "object",
+              "properties": {
+                "background": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "modifier_button_overrides": {
+          "type": "object",
+          "description": "Keyed by modifier block name.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "selected": {
+                "type": "object",
+                "properties": {
+                  "background": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              },
+              "unselected": {
+                "type": "object",
+                "properties": {
+                  "background": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "default_printer_id": {
+      "type": "string",
+      "description": "ID of the catch-all printer"
+    },
+    "category_printers": {
+      "type": "object",
+      "description": "Maps each menu category to label-printer IDs.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "category_modifier_order": {
+      "type": "object",
+      "description": "Default modifier group display order per category.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "label_printers": {
+      "type": "array",
+      "description": "Configured drink label printers",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "width_mm": {
+            "type": "number"
+          },
+          "height_mm": {
+            "type": "number"
+          },
+          "font_family": {
+            "type": "string"
+          },
+          "padding_mm": {
+            "type": "number"
+          },
+          "connection_type": {
+            "type": "string",
+            "enum": [
+              "usb",
+              "lan",
+              "bluetooth"
+            ],
+            "default": "usb"
+          },
+          "os_printer_name": {
+            "type": "string"
+          },
+          "lan_address": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "description": "Ordered label fields with display config",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "font_size_pt": {
+                  "type": "number"
+                },
+                "bold": {
+                  "type": "boolean"
+                },
+                "align": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "receipt_printer": {
+      "type": "object",
+      "description": "Receipt printer configuration (USB, LAN, or Bluetooth)",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "connection_type": {
+          "type": "string",
+          "enum": [
+            "usb",
+            "lan",
+            "bluetooth"
+          ],
+          "default": "usb"
+        },
+        "os_printer_name": {
+          "type": "string"
+        },
+        "lan_address": {
+          "type": "string"
+        },
+        "width_mm": {
+          "type": "number"
+        },
+        "font_family": {
+          "type": "string"
+        },
+        "show_logo": {
+          "type": "boolean"
+        },
+        "show_tax": {
+          "type": "boolean"
+        },
+        "show_footer": {
+          "type": "boolean"
+        },
+        "auto_print": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-print a receipt when an order is completed"
+        },
+        "print_drink_ticket": {
+          "type": "boolean",
+          "default": false,
+          "description": "Print a drink ticket after the customer receipt"
+        },
+        "drink_ticket_text": {
+          "type": "string",
+          "default": "Please present to the barista\nto collect your order",
+          "description": "Custom message on the drink ticket"
+        },
+        "drink_ticket_order_size": {
+          "type": "string",
+          "enum": [
+            "small",
+            "normal",
+            "bold",
+            "double",
+            "tall",
+            "large",
+            "xlarge",
+            "xxlarge"
+          ],
+          "default": "xlarge",
+          "description": "Font size for the order number on the drink ticket"
+        },
+        "drink_ticket_text_size": {
+          "type": "string",
+          "enum": [
+            "small",
+            "normal",
+            "bold",
+            "double",
+            "tall",
+            "large",
+            "xlarge",
+            "xxlarge"
+          ],
+          "default": "normal",
+          "description": "Font size for the message text on the drink ticket"
+        },
+        "drink_ticket_order_align": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "default": "center",
+          "description": "Text alignment for the order number on the drink ticket"
+        },
+        "drink_ticket_text_align": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "default": "center",
+          "description": "Text alignment for the message text on the drink ticket"
+        },
+        "drink_ticket_order_font": {
+          "type": "string",
+          "enum": [
+            "A",
+            "B"
+          ],
+          "default": "A",
+          "description": "ESC/POS font for the order number on the drink ticket (A = standard, B = compressed)"
+        },
+        "drink_ticket_text_font": {
+          "type": "string",
+          "enum": [
+            "A",
+            "B"
+          ],
+          "default": "A",
+          "description": "ESC/POS font for the message text on the drink ticket (A = standard, B = compressed)"
+        },
+        "drink_ticket_items_size": {
+          "type": "string",
+          "enum": [
+            "small",
+            "normal",
+            "bold",
+            "double",
+            "tall",
+            "large",
+            "xlarge",
+            "xxlarge"
+          ],
+          "default": "large",
+          "description": "Font size for the item breakdown on the drink ticket"
+        },
+        "drink_ticket_items_font": {
+          "type": "string",
+          "enum": [
+            "A",
+            "B"
+          ],
+          "default": "A",
+          "description": "ESC/POS font for the item breakdown on the drink ticket (A = standard, B = compressed)"
+        },
+        "auto_cut": {
+          "type": "string",
+          "enum": [
+            "none",
+            "partial",
+            "full"
+          ],
+          "default": "partial",
+          "description": "Auto-cut mode after printing"
+        },
+        "qr_enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Print a QR code on the customer receipt"
+        },
+        "qr_id": {
+          "type": "string",
+          "default": "",
+          "description": "ID of the QR code from the qr_codes library to print on the customer receipt"
+        },
+        "qr_caption": {
+          "type": "string",
+          "default": "",
+          "description": "Text line printed below the QR code on the customer receipt"
+        },
+        "barcode_enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Print the order number as a CODE128 barcode on the customer receipt"
+        },
+        "line_alignments": {
+          "type": "object",
+          "description": "Text alignment for each receipt section",
+          "properties": {
+            "header": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "center"
+            },
+            "order_info": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "left"
+            },
+            "items": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "left"
+            },
+            "totals": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "left"
+            },
+            "payment": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "left"
+            },
+            "footer": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "center"
+            },
+            "qr_code": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "center"
+            },
+            "barcode": {
+              "type": "string",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "center"
+            }
+          }
+        }
+      }
+    },
+    "display_state": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "building",
+        "payment",
+        "thankyou"
+      ],
+      "default": "idle",
+      "description": "Customer Display Screen state"
+    },
+    "active_cart": {
+      "type": "array",
+      "description": "Live cart snapshot mirrored by the POS for the CDS",
+      "items": {
+        "type": "object",
+        "properties": {
+          "menu_item_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit_price": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "modifiers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "option": {
+                  "type": "string"
+                },
+                "price_adjustment": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "active_order_number": {
+      "type": "string",
+      "default": "",
+      "description": "Order number shown on the CDS"
+    },
+    "active_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Final total due shown on the CDS payment screen"
+    },
+    "cds_config": {
+      "type": "object",
+      "description": "Customer Display Screen configuration",
+      "properties": {
+        "slideshow_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "layout": {
+          "type": "string",
+          "enum": [
+            "split-vertical",
+            "split-horizontal",
+            "fullscreen-idle-split-active"
+          ],
+          "default": "fullscreen-idle-split-active"
+        },
+        "split_ratio": {
+          "type": "number",
+          "default": 40,
+          "description": "Percent (10-90) given to the order panel"
+        },
+        "slideshow_pause_during_order": {
+          "type": "boolean",
+          "default": true
+        },
+        "default_slide_interval_ms": {
+          "type": "number",
+          "default": 5000,
+          "description": "Global slide duration (1000-60000 ms)"
+        },
+        "transition_style": {
+          "type": "string",
+          "enum": [
+            "cut",
+            "fade",
+            "slide-left",
+            "slide-up",
+            "zoom"
+          ],
+          "default": "fade"
+        },
+        "idle_background_color": {
+          "type": "string"
+        },
+        "idle_logo_url": {
+          "type": "string"
+        },
+        "idle_headline": {
+          "type": "string"
+        },
+        "idle_subheadline": {
+          "type": "string"
+        },
+        "idle_show_clock": {
+          "type": "boolean",
+          "default": true
+        },
+        "order_panel_title": {
+          "type": "string",
+          "default": "Your Order"
+        },
+        "order_show_item_images": {
+          "type": "boolean",
+          "default": false
+        },
+        "order_accent_color": {
+          "type": "string"
+        },
+        "slides": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "text",
+                  "special"
+                ]
+              },
+              "title": {
+                "type": "string"
+              },
+              "media_url": {
+                "type": "string"
+              },
+              "headline": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "background_color": {
+                "type": "string"
+              },
+              "text_color": {
+                "type": "string"
+              },
+              "menu_item_id": {
+                "type": "string"
+              },
+              "special_name": {
+                "type": "string"
+              },
+              "special_description": {
+                "type": "string"
+              },
+              "special_price": {
+                "type": "string"
+              },
+              "special_image_url": {
+                "type": "string"
+              },
+              "duration_ms": {
+                "type": "number"
+              },
+              "transition": {
+                "type": "string"
+              },
+              "sort_order": {
+                "type": "number",
+                "default": 0
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "smartconnect": {
+      "type": "object",
+      "description": "Shift4 SmartConnect EFTPOS terminal integration config",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show an EFTPOS payment button in the checkout"
+        },
+        "register_id": {
+          "type": "string",
+          "description": "Unique POS register ID (GUID) that identifies this terminal"
+        },
+        "base_url": {
+          "type": "string",
+          "default": "",
+          "description": "SmartConnect cloud API base URL \u2014 obtain from Shift4's gated API reference"
+        },
+        "paired": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this register is paired to an EFTPOS terminal"
+        },
+        "paired_device_name": {
+          "type": "string",
+          "description": "Name of the paired EFTPOS terminal"
+        }
+      }
+    }
+  },
+  "required": [
+    "store_name"
+  ]
+}

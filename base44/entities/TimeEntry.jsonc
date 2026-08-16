@@ -1,0 +1,62 @@
+{
+  "name": "TimeEntry",
+  "type": "object",
+  "properties": {
+    "staff_user_id": {
+      "type": "string",
+      "description": "ID of the StaffUser this entry belongs to"
+    },
+    "staff_name": {
+      "type": "string",
+      "description": "Denormalized staff display name"
+    },
+    "clock_in": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Clock in timestamp"
+    },
+    "clock_out": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Clock out timestamp (null if still clocked in)"
+    },
+    "hours": {
+      "type": "number",
+      "description": "Total hours worked (calculated on clock out)"
+    },
+    "hourly_rate": {
+      "type": "number",
+      "description": "Hourly rate at time of clock in, denormalized from StaffUser"
+    },
+    "total_cost": {
+      "type": "number",
+      "description": "hours * hourly_rate"
+    },
+    "event_id": {
+      "type": "string",
+      "description": "Optional event ID for event-based labor costing"
+    },
+    "event_name": {
+      "type": "string",
+      "description": "Denormalized event name"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "completed"
+      ],
+      "default": "open",
+      "description": "open = clocked in, completed = clocked out"
+    }
+  },
+  "required": [
+    "staff_user_id",
+    "staff_name",
+    "clock_in",
+    "status"
+  ]
+}

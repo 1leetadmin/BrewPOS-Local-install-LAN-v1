@@ -1,0 +1,120 @@
+{
+  "name": "MenuItem",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the menu item"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "coffee",
+        "tea",
+        "smoothies",
+        "juices",
+        "sodas",
+        "water",
+        "alcohol",
+        "food",
+        "snacks",
+        "desserts",
+        "other"
+      ],
+      "description": "Category of the item"
+    },
+    "price": {
+      "type": "number",
+      "description": "Price of the item"
+    },
+    "cost": {
+      "type": "number",
+      "description": "Cost price for profit tracking"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Image URL for the item"
+    },
+    "color": {
+      "type": "string",
+      "description": "Display color for the POS grid tile"
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "Item-specific modifier groups",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "multi_select": {
+            "type": "boolean",
+            "default": false,
+            "description": "Allow multiple options to be selected at once"
+          },
+          "max_selections": {
+            "type": "number",
+            "default": 0,
+            "description": "Max number of options that can be selected (0 = no limit)"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "price_adjustment": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "preset_ids": {
+      "type": "array",
+      "description": "IDs of ModifierPreset records applied to this item",
+      "items": {
+        "type": "string"
+      }
+    },
+    "modifier_order": {
+      "type": "array",
+      "description": "Ordered modifier group names for this item. Empty/missing = inherit the category default order, then natural order (item groups, then preset groups).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "printer_ids": {
+      "type": "array",
+      "description": "Item-level printer override. When non-empty, routes this item to these printers instead of the category assignment. Empty/missing = inherit from category, then default printer.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_available": {
+      "type": "boolean",
+      "default": true
+    },
+    "barcode": {
+      "type": "string"
+    },
+    "tax_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "sort_order": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "name",
+    "price",
+    "category"
+  ]
+}

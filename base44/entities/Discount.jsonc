@@ -1,0 +1,32 @@
+{
+  "name": "Discount",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name of the discount (e.g. 'Staff 20%', 'Happy Hour')"
+    },
+    "percentage": {
+      "type": "number",
+      "description": "Discount percentage 0-100"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "prepaid_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Prepaid balance for this discount. Alert triggers when usage reaches 90%."
+    },
+    "used_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Accumulated discount amount used. Updated when orders with this discount are completed."
+    }
+  },
+  "required": [
+    "name",
+    "percentage"
+  ]
+}
