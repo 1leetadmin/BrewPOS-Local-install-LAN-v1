@@ -10,6 +10,9 @@ on:
     branches: [lan-local]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -28,7 +31,26 @@ jobs:
         run: npm install
 
       - name: Build the Windows installer
-        run: npm run electron:build
+        id: build
+        shell: pwsh
+        run: |
+          npm run electron:build 2>&1 | Tee-Object -FilePath build-log.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish log for debugging (always)
+        if: always()
+        shell: bash
+        run: |
+          git config user.email "ci@brewpos.local"
+          git config user.name "BrewPOS CI"
+          git fetch origin ci-logs 2>/dev/null || true
+          git checkout --orphan ci-logs-tmp
+          git rm -rf . > /dev/null 2>&1 || true
+          cp build-log.txt build-log.txt.tmp 2>/dev/null || echo "no log" > build-log.txt.tmp
+          mv build-log.txt.tmp build-log.txt
+          git add build-log.txt
+          git commit -m "CI log: run ${{ github.run_id }}"
+          git push origin ci-logs-tmp:ci-logs --force
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
