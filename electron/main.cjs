@@ -1,11 +1,6 @@
-const { app, BrowserWindow, shell, dialog, session } = require('electron');
+const { app, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
-
-// A real, documented Chromium flag for Web Bluetooth's permissions model.
-// Not guaranteed to be the fix, but legitimate and low-risk to try alongside
-// the diagnostic below, which will tell us definitively either way.
-app.commandLine.appendSwitch('enable-features', 'WebBluetoothNewPermissionsBackend');
 const http = require('http');
 const fs = require('fs');
 
@@ -111,17 +106,9 @@ function startStaticServer(distPath) {
       const ext = path.extname(filePath).toLowerCase();
       res.setHeader('Content-Type', MIME_TYPES[ext] || 'application/octet-stream');
 
-      // Newer Chromium blocks powerful APIs (Bluetooth, USB, etc.) by
-      // default unless the page explicitly declares it's allowed via a
-      // Permissions-Policy header — separate from, and enforced earlier
-      // than, the runtime permission-prompt system (session.
-      // setPermissionCheckHandler/setPermissionRequestHandler, already set
-      // up in this file). This is a strong candidate for why Bluetooth
-      // requestDevice() has been failing before ever reaching any of that
-      // code: navigator.bluetooth.getAvailability() correctly reports the
-      // adapter exists, but the scan itself may be silently blocked at
-      // this earlier policy layer, which never shows up as a logged
-      // permission check because it isn't one.
+      // Explicitly allow powerful APIs (Bluetooth, microphone, etc.) via
+      // Permissions-Policy — harmless and correct to keep even now that the
+      // UI runs in a real browser rather than Electron's own window.
       res.setHeader('Permissions-Policy', 'bluetooth=(self), microphone=(self), usb=(self), serial=(self)');
 
       fs.readFile(filePath, (err, data) => {
@@ -189,157 +176,78 @@ function startPrintServer() {
 }
 
 /**
- * Electron denies permission requests (including 'bluetooth') by default
- * unless a handler explicitly grants them. Without this, navigator.bluetooth
- * .requestDevice() is blocked before it ever starts scanning — which looks
- * exactly like "the button does nothing", even with the device picker (added
- * below) correctly wired up. This is a single-purpose kiosk app that only
- * ever loads our own bundled UI (never arbitrary web content), so it's safe
- * to grant permissions broadly here.
+ * Finds a real, installed Chromium-based browser (Chrome preferred — this is
+ * what's been confirmed working for Bluetooth and voice — falling back to
+ * Edge, which ships with every Windows 10/11 install by default).
  */
-function setupPermissions() {
-  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    btLog(`permission check: ${permission}`);
-    return true;
-  });
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    btLog(`permission request: ${permission}`);
-    callback(true);
-  });
-
-  // Some Bluetooth printers use classic Bluetooth (not BLE) and trigger an
-  // OS-level pairing prompt (PIN/passkey/confirm) during requestDevice().
-  // Without a handler for this, that step also hangs silently. Auto-confirm
-  // simple confirmation prompts; for PIN/passkey, ask via a native dialog
-  // since we can't guess the code.
-  session.defaultSession.setBluetoothPairingHandler((details, callback) => {
-    if (details.pairingKind === 'confirm') {
-      callback({ confirmed: true });
-      return;
-    }
-    if (details.pairingKind === 'pin' || details.pairingKind === 'passkey' || details.pairingKind === 'confirmPin') {
-      const result = dialog.showMessageBoxSync({
-        type: 'question',
-        buttons: ['OK', 'Cancel'],
-        title: 'Bluetooth Pairing',
-        message: `Pairing with "${details.deviceId}"`,
-        detail: details.pin ? `Confirm this matches the code shown on the printer: ${details.pin}` : 'Confirm pairing with this printer?',
-      });
-      callback({ confirmed: result === 0 });
-      return;
-    }
-    callback({ confirmed: true });
-  });
+function findBrowserExecutable() {
+  const candidates = [
+    // Chrome
+    path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env['LOCALAPPDATA'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    // Edge (bundled with Windows by default — reliable fallback)
+    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+    path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+  ];
+  return candidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } }) || null;
 }
+
+let browserProc = null;
 
 /**
- * Web Bluetooth (navigator.bluetooth.requestDevice, used for pairing
- * Bluetooth receipt/label printers in Settings) needs Electron's MAIN
- * process to resolve device selection — the browser-style picker doesn't
- * appear on its own. Without this handler, requestDevice() just hangs
- * forever with no error and no picker, which looks exactly like "the
- * Connect button flashes and nothing happens."
- *
- * Devices trickle in as Bluetooth scanning discovers them, so this waits
- * briefly to let the list fill in, then shows a native picker naming each
- * discovered device so you can pick the actual printer.
+ * Launches the app's UI in a real, installed browser instead of Electron's
+ * own bundled browser engine — in "app mode" (--app=URL), which hides the
+ * address bar and tabs so it still looks and feels like a single native
+ * app, not a browser window. This is purely local (http://localhost), so
+ * it needs no internet access, exactly like the local server it's pointed
+ * at. Confirmed necessary because Electron's bundled Chromium has a
+ * Bluetooth chooser bug that persisted through every fix tried at the
+ * config/permissions layer — a real browser doesn't have that bug, and
+ * also correctly supports voice recognition (Electron's engine can't,
+ * regardless of configuration — see git history on VoiceRecognition.jsx
+ * for the full investigation).
  */
-function setupBluetoothDevicePicker() {
-  let pendingTimer = null;
-  let latestDeviceList = [];
-  let latestCallback = null;
+function launchBrowserApp() {
+  const browserPath = findBrowserExecutable();
+  if (!browserPath) {
+    dialog.showErrorBox('BrewPOS Launch Error',
+      'Could not find Chrome or Edge installed on this PC. BrewPOS needs one of them installed to run — please install Google Chrome or Microsoft Edge and try again.');
+    app.quit();
+    return;
+  }
 
-  session.defaultSession.on('select-bluetooth-device', (event, deviceList, callback) => {
-    event.preventDefault();
-    btLog(`select-bluetooth-device fired, ${deviceList.length} device(s) so far: ${deviceList.map(d => d.deviceName || d.deviceId).join(', ')}`);
-    latestDeviceList = deviceList;
-    latestCallback = callback;
+  // A dedicated, isolated browser profile (not the user's normal Chrome
+  // profile) so this never conflicts with someone's personal browser also
+  // being open, and so permissions granted here (Bluetooth, microphone)
+  // persist across launches without re-prompting every time.
+  const profileDir = path.join(DATA_ROOT, 'browser-profile');
+  fs.mkdirSync(profileDir, { recursive: true });
 
-    if (pendingTimer) return; // Already waiting to show the picker for this scan.
-    pendingTimer = setTimeout(() => {
-      pendingTimer = null;
-      if (!latestDeviceList.length) {
-        latestCallback('');
-        return;
-      }
-      const names = latestDeviceList.map((d) => d.deviceName || d.deviceId || 'Unknown device');
-      const buttons = [...names, 'Cancel'];
-      const choice = dialog.showMessageBoxSync({
-        type: 'question',
-        buttons,
-        cancelId: buttons.length - 1,
-        title: 'Select Bluetooth Printer',
-        message: 'Choose the Bluetooth printer to pair:',
-      });
-      latestCallback(choice >= 0 && choice < latestDeviceList.length ? latestDeviceList[choice].deviceId : '');
-    }, 2500);
-  });
-}
+  browserProc = spawn(browserPath, [
+    `--app=http://localhost:${APP_PORT}`,
+    `--user-data-dir=${profileDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-features=Translate',
+    'about:blank', // avoids a brief flash of a New Tab page before --app kicks in on some versions
+  ], { detached: false });
 
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    title: 'BrewPOS',
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      // Unlike regular desktop Chrome, Electron does NOT enable Web
-      // Bluetooth by default — it has to be turned on explicitly, or
-      // navigator.bluetooth doesn't exist at all and requestDevice() can
-      // never be called. This is almost certainly why nothing happened
-      // when clicking Connect: the code was failing before it ever got to
-      // Electron's device picker or permission handling (both already
-      // wired up correctly, they just were never reached).
-      enableBlinkFeatures: 'WebBluetooth',
-    },
+  browserProc.on('exit', () => {
+    // Closing the app window should stop the whole app, including the
+    // local server running in the background — matches normal "close the
+    // app and it's fully closed" expectations.
+    browserProc = null;
+    app.quit();
   });
 
-  win.loadURL(`http://localhost:${APP_PORT}`);
-
-  // Diagnostic only: Ctrl+Shift+B opens Chromium's own internal Bluetooth
-  // adapter status page (chrome://bluetooth-internals) in a separate window,
-  // without disrupting the running POS session. This is the same diagnostic
-  // page real Chrome uses — it shows definitively whether Chromium's engine
-  // (inside this Electron app specifically) can see a Bluetooth adapter at
-  // all, rather than inferring it indirectly from requestDevice() failures.
-  win.webContents.on('before-input-event', (event, input) => {
-    if (input.control && input.shift && input.key.toLowerCase() === 'b' && input.type === 'keyDown') {
-      const debugWin = new BrowserWindow({
-        width: 1000,
-        height: 700,
-        title: 'Bluetooth Diagnostics (Ctrl+Shift+B)',
-      });
-      debugWin.loadURL('chrome://bluetooth-internals/#adapter');
-    }
-  });
-
-  // Open external links (Google OAuth, etc.) in the system browser.
-  // Same-origin links (like /display for the Customer Display) open in a
-  // new Electron window.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(`http://localhost:${APP_PORT}`)) {
-      return { action: 'allow' };
-    }
-    shell.openExternal(url);
-    return { action: 'deny' };
+  browserProc.on('error', (err) => {
+    dialog.showErrorBox('BrewPOS Launch Error', `Could not start the browser: ${err.message}`);
+    app.quit();
   });
 }
 
 app.whenReady().then(async () => {
-  // Windows treats an app's identity (used for notifications, taskbar
-  // grouping, and — relevant here — some device-permission prompts like
-  // Bluetooth) differently for apps that don't explicitly register one.
-  // Electron apps get an auto-generated ID by default, but setting this
-  // explicitly and matching it to the installer's appId is the documented
-  // fix for a category of "Windows silently denies device access" issues.
-  if (process.platform === 'win32') {
-    app.setAppUserModelId('com.base44.pos');
-  }
-  setupPermissions();
-  setupBluetoothDevicePicker();
   startPrintServer();
 
   const distPath = getDistPath();
@@ -351,18 +259,11 @@ app.whenReady().then(async () => {
   }
 
   await startStaticServer(distPath);
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  launchBrowserApp();
 });
 
 app.on('before-quit', () => {
+  if (browserProc) { try { browserProc.kill(); } catch { /* already gone */ } }
   if (printServerProc && !printServerProc.killed) {
     printServerProc.kill();
   }
