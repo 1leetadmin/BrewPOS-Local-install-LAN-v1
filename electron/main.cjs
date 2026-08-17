@@ -3,7 +3,18 @@ const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
-const { DATA_ROOT } = require('../server/data-root.js');
+
+function getServerPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'server')
+    : path.join(__dirname, '..', 'server');
+}
+
+// data-root.js lives in server/, which is copied to resources/server in a
+// packaged build (an extraResource, NOT bundled inside app.asar alongside
+// this file) — so it must be resolved the same way as the server itself,
+// not via a static relative require (that path only exists in dev).
+const { DATA_ROOT } = require(path.join(getServerPath(), 'data-root.js'));
 
 const btLogPath = path.join(DATA_ROOT, 'bluetooth-debug.log');
 function btLog(msg) {
@@ -41,12 +52,6 @@ function getDistPath() {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'dist')
     : path.join(__dirname, '..', 'dist');
-}
-
-function getServerPath() {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, 'server')
-    : path.join(__dirname, '..', 'server');
 }
 
 /**
