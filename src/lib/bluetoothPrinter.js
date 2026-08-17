@@ -200,7 +200,7 @@ class BluetoothPrinterService {
   async requestDevice() {
     debugLog(`requestDevice() called — 'bluetooth' in navigator: ${'bluetooth' in navigator}`);
     if (!this.isSupported()) throw new Error('Web Bluetooth is not supported. Use Chrome.');
-    debugLog('calling navigator.bluetooth.requestDevice()...');
+    debugLog('calling navigator.bluetooth.requestDevice() with acceptAllDevices...');
     try {
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
@@ -209,8 +209,22 @@ class BluetoothPrinterService {
       debugLog(`requestDevice() resolved: ${device?.name || device?.id || 'unnamed device'}`);
       return device;
     } catch (err) {
-      debugLog(`requestDevice() rejected: ${err.name}: ${err.message}`);
-      throw err;
+      debugLog(`acceptAllDevices attempt rejected: ${err.name}: ${err.message} — retrying with explicit service filters...`);
+      // Some Electron versions have reported issues with the chooser UI
+      // specifically when acceptAllDevices is used. Filters is a real,
+      // different code path in Chromium's implementation — worth trying
+      // as a distinct attempt, not just a retry of the same thing.
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: PRINTER_SERVICE_UUIDS.map((uuid) => ({ services: [uuid] })),
+          optionalServices: PRINTER_SERVICE_UUIDS,
+        });
+        debugLog(`filters attempt resolved: ${device?.name || device?.id || 'unnamed device'}`);
+        return device;
+      } catch (err2) {
+        debugLog(`filters attempt also rejected: ${err2.name}: ${err2.message}`);
+        throw err2;
+      }
     }
   }
 
