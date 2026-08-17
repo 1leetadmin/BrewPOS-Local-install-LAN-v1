@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { CATEGORY_LABELS } from '@/lib/ingredientReports';
 import { Package, CheckCircle2, ArrowLeftRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -56,37 +57,70 @@ export default function EventReconciliation({ open, onClose, event, transactions
     return { totalCost, totalRemaining, totalWasted };
   }, [summary]);
 
-  const handleKeep = (s) => {
-    onSave({
-      ingredient_id: s.ingredient_id,
-      ingredient_name: s.ingredient_name,
-      category: s.category,
-      unit: s.unit,
-      quantity: s.remaining,
-      transaction_type: 'adjustment',
-      cost_per_unit: s.cost_per_unit,
-      total_cost: s.remaining_cost,
-      date: new Date().toISOString(),
-      event_id: event.id,
-      event_name: event.name,
-      notes: `Retained in stock after ${event.name}`,
-    });
+  // Split editor: how much of each ingredient's remaining quantity is being
+  // written off as wastage — the rest is implicitly kept in stock. Editing
+  // either field updates the other to the complement automatically.
+  const [splitWasted, setSplitWasted] = useState({}); // { [ingredient_id]: string }
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  const getKeptValue = (s) => {
+    const raw = splitWasted[s.ingredient_id];
+    if (raw === undefined || raw === '') return s.remaining;
+    const wasted = Math.max(0, Math.min(s.remaining, Number(raw) || 0));
+    return round2(s.remaining - wasted);
   };
 
-  const handleWriteOff = (s) => {
-    onSave({
-      ingredient_id: s.ingredient_id,
-      ingredient_name: s.ingredient_name,
-      category: s.category,
-      unit: s.unit,
-      quantity: s.remaining,
-      transaction_type: 'wastage',
-      cost_per_unit: s.cost_per_unit,
-      total_cost: s.remaining_cost,
-      date: new Date().toISOString(),
-      event_id: event.id,
-      event_name: event.name,
-      notes: `Leftover wastage from ${event.name}`,
+  const setWasted = (s, value) => {
+    if (value === '') { setSplitWasted((prev) => ({ ...prev, [s.ingredient_id]: '' })); return; }
+    const clamped = Math.max(0, Math.min(s.remaining, Number(value) || 0));
+    setSplitWasted((prev) => ({ ...prev, [s.ingredient_id]: String(clamped) }));
+  };
+  const setKept = (s, value) => {
+    if (value === '') { setSplitWasted((prev) => ({ ...prev, [s.ingredient_id]: '' })); return; }
+    const kept = Math.max(0, Math.min(s.remaining, Number(value) || 0));
+    setWasted(s, s.remaining - kept);
+  };
+
+  const handleApplySplit = (s) => {
+    const wastedQty = round2(Math.max(0, Math.min(s.remaining, Number(splitWasted[s.ingredient_id]) || 0)));
+    const keptQty = round2(s.remaining - wastedQty);
+
+    if (wastedQty > 0) {
+      onSave({
+        ingredient_id: s.ingredient_id,
+        ingredient_name: s.ingredient_name,
+        category: s.category,
+        unit: s.unit,
+        quantity: wastedQty,
+        transaction_type: 'wastage',
+        cost_per_unit: s.cost_per_unit,
+        total_cost: round2(wastedQty * s.cost_per_unit),
+        date: new Date().toISOString(),
+        event_id: event.id,
+        event_name: event.name,
+        notes: `Leftover wastage from ${event.name}`,
+      });
+    }
+    if (keptQty > 0) {
+      onSave({
+        ingredient_id: s.ingredient_id,
+        ingredient_name: s.ingredient_name,
+        category: s.category,
+        unit: s.unit,
+        quantity: keptQty,
+        transaction_type: 'adjustment',
+        cost_per_unit: s.cost_per_unit,
+        total_cost: round2(keptQty * s.cost_per_unit),
+        date: new Date().toISOString(),
+        event_id: event.id,
+        event_name: event.name,
+        notes: `Retained in stock after ${event.name}`,
+      });
+    }
+    setSplitWasted((prev) => {
+      const next = { ...prev };
+      delete next[s.ingredient_id];
+      return next;
     });
   };
 
@@ -134,7 +168,8 @@ export default function EventReconciliation({ open, onClose, event, transactions
                   <th className="px-3 py-2 font-medium text-right">Used</th>
                   <th className="px-3 py-2 font-medium text-right">Wasted</th>
                   <th className="px-3 py-2 font-medium text-right">Remaining</th>
-                  <th className="px-3 py-2 font-medium">Action</th>
+                  <th className="px-3 py-2 font-medium text-center" colSpan={2}>Split remaining</th>
+                  <th className="px-3 py-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -145,22 +180,50 @@ export default function EventReconciliation({ open, onClose, event, transactions
                     <td className="px-3 py-2 text-right font-mono">{s.used} {s.unit}</td>
                     <td className="px-3 py-2 text-right font-mono text-destructive">{s.wasted} {s.unit}</td>
                     <td className={cn('px-3 py-2 text-right font-mono font-bold', s.remaining > 0 && 'text-amber-600')}>{s.remaining} {s.unit}</td>
-                    <td className="px-3 py-2">
-                      {s.remaining > 0 ? (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleKeep(s)}>
-                            Keep in Stock
+                    {s.remaining > 0 ? (
+                      <>
+                        <td className="px-2 py-2">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-[10px] text-muted-foreground">Wastage</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={s.remaining}
+                              step="0.01"
+                              placeholder="0"
+                              value={splitWasted[s.ingredient_id] ?? ''}
+                              onChange={e => setWasted(s, e.target.value)}
+                              className="w-20 h-7 text-right text-xs"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-2 py-2">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-[10px] text-muted-foreground">Keep in Stock</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={s.remaining}
+                              step="0.01"
+                              value={getKeptValue(s)}
+                              onChange={e => setKept(s, e.target.value)}
+                              className="w-20 h-7 text-right text-xs"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Button size="sm" className="h-7 text-xs" onClick={() => handleApplySplit(s)}>
+                            Apply
                           </Button>
-                          <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleWriteOff(s)}>
-                            Write Off
-                          </Button>
-                        </div>
-                      ) : (
+                        </td>
+                      </>
+                    ) : (
+                      <td className="px-3 py-2" colSpan={3}>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Reconciled
                         </span>
-                      )}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

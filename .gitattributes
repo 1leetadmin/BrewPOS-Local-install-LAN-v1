@@ -25,3 +25,6 @@ src/components/LicenseGate.jsx           merge=ours
 # --- Electron shell (added 2026-08-17) — spawns the local server, handles
 # Bluetooth device pairing; needs to stay hand-authored ---
 electron/main.cjs                        merge=ours
+
+# --- Manual bug fixes (added 2026-08-17) ---
+src/components/ingredients/EventReconciliation.jsx  merge=ours

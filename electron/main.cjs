@@ -3,6 +3,15 @@ const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const { DATA_ROOT } = require('../server/data-root.js');
+
+const btLogPath = path.join(DATA_ROOT, 'bluetooth-debug.log');
+function btLog(msg) {
+  try {
+    fs.mkdirSync(DATA_ROOT, { recursive: true });
+    fs.appendFileSync(btLogPath, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch { /* best effort */ }
+}
 
 const APP_PORT = 3000;
 const PRINT_SERVER_PORT = 3001;
@@ -157,6 +166,50 @@ function startPrintServer() {
 }
 
 /**
+ * Electron denies permission requests (including 'bluetooth') by default
+ * unless a handler explicitly grants them. Without this, navigator.bluetooth
+ * .requestDevice() is blocked before it ever starts scanning — which looks
+ * exactly like "the button does nothing", even with the device picker (added
+ * below) correctly wired up. This is a single-purpose kiosk app that only
+ * ever loads our own bundled UI (never arbitrary web content), so it's safe
+ * to grant permissions broadly here.
+ */
+function setupPermissions() {
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    btLog(`permission check: ${permission}`);
+    return true;
+  });
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    btLog(`permission request: ${permission}`);
+    callback(true);
+  });
+
+  // Some Bluetooth printers use classic Bluetooth (not BLE) and trigger an
+  // OS-level pairing prompt (PIN/passkey/confirm) during requestDevice().
+  // Without a handler for this, that step also hangs silently. Auto-confirm
+  // simple confirmation prompts; for PIN/passkey, ask via a native dialog
+  // since we can't guess the code.
+  session.defaultSession.setBluetoothPairingHandler((details, callback) => {
+    if (details.pairingKind === 'confirm') {
+      callback({ confirmed: true });
+      return;
+    }
+    if (details.pairingKind === 'pin' || details.pairingKind === 'passkey' || details.pairingKind === 'confirmPin') {
+      const result = dialog.showMessageBoxSync({
+        type: 'question',
+        buttons: ['OK', 'Cancel'],
+        title: 'Bluetooth Pairing',
+        message: `Pairing with "${details.deviceId}"`,
+        detail: details.pin ? `Confirm this matches the code shown on the printer: ${details.pin}` : 'Confirm pairing with this printer?',
+      });
+      callback({ confirmed: result === 0 });
+      return;
+    }
+    callback({ confirmed: true });
+  });
+}
+
+/**
  * Web Bluetooth (navigator.bluetooth.requestDevice, used for pairing
  * Bluetooth receipt/label printers in Settings) needs Electron's MAIN
  * process to resolve device selection — the browser-style picker doesn't
@@ -175,6 +228,7 @@ function setupBluetoothDevicePicker() {
 
   session.defaultSession.on('select-bluetooth-device', (event, deviceList, callback) => {
     event.preventDefault();
+    btLog(`select-bluetooth-device fired, ${deviceList.length} device(s) so far: ${deviceList.map(d => d.deviceName || d.deviceId).join(', ')}`);
     latestDeviceList = deviceList;
     latestCallback = callback;
 
@@ -227,6 +281,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  setupPermissions();
   setupBluetoothDevicePicker();
   startPrintServer();
 
