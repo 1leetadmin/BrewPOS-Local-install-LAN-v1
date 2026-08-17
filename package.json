@@ -1,7 +1,7 @@
 {
   "name": "base44-app",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -105,7 +105,7 @@
   },
   "build": {
     "appId": "com.base44.pos",
-    "productName": "BrewPOS",
+    "productName": "BrewPOS Pilot",
     "directories": {
       "output": "release"
     },
@@ -130,7 +130,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "BrewPOS-Pilot-v${version}-Setup.${ext}"
     }
   },
   "description": "BrewPOS \u2014 caf\u00e9 point-of-sale system for Headshot Coffee",

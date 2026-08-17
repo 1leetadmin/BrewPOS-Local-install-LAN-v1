@@ -111,9 +111,14 @@ const auth = {
     throw new Error('Sign-in with Google is not available in the local offline build. Use the admin username and password instead.');
   },
 
-  logout(redirectUrl) {
+  logout(redirectUrl = '/login') {
     request('/auth/logout', { method: 'POST' }).catch(() => {});
     setToken(null);
+    // Defaults to redirecting to /login even when called with no argument
+    // (e.g. POSSidebar's Logout button calls base44.auth.logout() directly)
+    // — previously this cleared the token but never navigated anywhere,
+    // so the screen just sat there looking logged in until manually
+    // refreshed. Pass null explicitly to skip the redirect if ever needed.
     if (redirectUrl) window.location.href = redirectUrl;
   },
 

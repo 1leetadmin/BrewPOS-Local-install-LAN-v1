@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    base44.auth.logout(shouldRedirect ? '/login' : undefined);
+    base44.auth.logout(shouldRedirect ? '/login' : null);
   };
 
   const navigateToLogin = () => {
