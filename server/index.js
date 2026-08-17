@@ -34,6 +34,23 @@ function getToken(req) {
 // see server/local-license.js for how keys are verified.
 // ============================================================================
 
+// ============================================================================
+// Renderer-side debug logging — lets the browser-side code (which can't
+// write files directly) append to the same bluetooth-debug.log the main
+// process writes to, so a single file shows the whole picture end to end.
+// ============================================================================
+
+app.post('/api/debug-log', (req, res) => {
+  try {
+    const { message } = req.body || {};
+    const logPath = path.join(DATA_ROOT, 'bluetooth-debug.log');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] [renderer] ${message}\n`);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/license/status', async (req, res) => {
   try {
     res.json(await LocalLicense.getStatus());

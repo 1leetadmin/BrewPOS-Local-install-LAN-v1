@@ -268,6 +268,14 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // Unlike regular desktop Chrome, Electron does NOT enable Web
+      // Bluetooth by default — it has to be turned on explicitly, or
+      // navigator.bluetooth doesn't exist at all and requestDevice() can
+      // never be called. This is almost certainly why nothing happened
+      // when clicking Connect: the code was failing before it ever got to
+      // Electron's device picker or permission handling (both already
+      // wired up correctly, they just were never reached).
+      enableBlinkFeatures: 'WebBluetooth',
     },
   });
 

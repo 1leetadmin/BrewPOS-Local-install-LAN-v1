@@ -23,6 +23,20 @@ const TX_CHAR_UUIDS = [
 
 import { sizeNameLine, buildModifierLines } from '@/lib/drinkLines';
 
+// Best-effort debug logging to the local server, so a failure here shows up
+// in the same %APPDATA%\BrewPOS Pilot\bluetooth-debug.log the main process
+// writes to — useful since Web Bluetooth failures often happen before any
+// error reaches the UI.
+function debugLog(message) {
+  try {
+    fetch('http://localhost:3001/api/debug-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    }).catch(() => {});
+  } catch { /* best effort */ }
+}
+
 const ESC = 0x1B;
 const GS  = 0x1D;
 const LF  = 0x0A;
@@ -184,11 +198,20 @@ class BluetoothPrinterService {
   }
 
   async requestDevice() {
+    debugLog(`requestDevice() called — 'bluetooth' in navigator: ${'bluetooth' in navigator}`);
     if (!this.isSupported()) throw new Error('Web Bluetooth is not supported. Use Chrome.');
-    return navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: PRINTER_SERVICE_UUIDS,
-    });
+    debugLog('calling navigator.bluetooth.requestDevice()...');
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: PRINTER_SERVICE_UUIDS,
+      });
+      debugLog(`requestDevice() resolved: ${device?.name || device?.id || 'unnamed device'}`);
+      return device;
+    } catch (err) {
+      debugLog(`requestDevice() rejected: ${err.name}: ${err.message}`);
+      throw err;
+    }
   }
 
   async connectDevice(printerId, device) {
