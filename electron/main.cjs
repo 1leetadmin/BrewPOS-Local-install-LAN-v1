@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog } = require('electron');
+const { app, BrowserWindow, shell, dialog, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -156,6 +156,49 @@ function startPrintServer() {
   }
 }
 
+/**
+ * Web Bluetooth (navigator.bluetooth.requestDevice, used for pairing
+ * Bluetooth receipt/label printers in Settings) needs Electron's MAIN
+ * process to resolve device selection — the browser-style picker doesn't
+ * appear on its own. Without this handler, requestDevice() just hangs
+ * forever with no error and no picker, which looks exactly like "the
+ * Connect button flashes and nothing happens."
+ *
+ * Devices trickle in as Bluetooth scanning discovers them, so this waits
+ * briefly to let the list fill in, then shows a native picker naming each
+ * discovered device so you can pick the actual printer.
+ */
+function setupBluetoothDevicePicker() {
+  let pendingTimer = null;
+  let latestDeviceList = [];
+  let latestCallback = null;
+
+  session.defaultSession.on('select-bluetooth-device', (event, deviceList, callback) => {
+    event.preventDefault();
+    latestDeviceList = deviceList;
+    latestCallback = callback;
+
+    if (pendingTimer) return; // Already waiting to show the picker for this scan.
+    pendingTimer = setTimeout(() => {
+      pendingTimer = null;
+      if (!latestDeviceList.length) {
+        latestCallback('');
+        return;
+      }
+      const names = latestDeviceList.map((d) => d.deviceName || d.deviceId || 'Unknown device');
+      const buttons = [...names, 'Cancel'];
+      const choice = dialog.showMessageBoxSync({
+        type: 'question',
+        buttons,
+        cancelId: buttons.length - 1,
+        title: 'Select Bluetooth Printer',
+        message: 'Choose the Bluetooth printer to pair:',
+      });
+      latestCallback(choice >= 0 && choice < latestDeviceList.length ? latestDeviceList[choice].deviceId : '');
+    }, 2500);
+  });
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -184,6 +227,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  setupBluetoothDevicePicker();
   startPrintServer();
 
   const distPath = getDistPath();

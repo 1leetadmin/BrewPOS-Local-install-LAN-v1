@@ -143,10 +143,17 @@ const auth = {
 };
 
 const functions = {
-  // SmartConnect/EFTPOS — routed through the local server's cache-first
-  // fallback. See server/local-cache-fallback.js.
   async invoke(functionName, payload) {
-    return request(`/ai/invoke-llm`, { method: 'POST', body: { functionName, payload } });
+    // customerDisplay is pure local data (reads StoreSettings) — it never
+    // actually needed the internet, only Base44's old hosting. Everything
+    // else (currently just smartconnect/EFTPOS) genuinely needs a network
+    // call, so it goes through the cache-first/online-fallback path.
+    // Base44's SDK wraps responses as { data: ... } — matched here so
+    // callers written for that convention (res.data) keep working.
+    if (functionName === 'customerDisplay') {
+      return { data: await request('/functions/customerDisplay') };
+    }
+    return { data: await request(`/ai/invoke-llm`, { method: 'POST', body: { functionName, payload } }) };
   },
 };
 

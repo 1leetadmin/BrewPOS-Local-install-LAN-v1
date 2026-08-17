@@ -148,6 +148,35 @@ app.delete('/api/entities/:entity/:id', (req, res) => {
 });
 
 // ============================================================================
+// Local implementation of the Base44 "customerDisplay" function — pure local
+// data (StoreSettings), reshaped exactly like the Base44 version did. Unlike
+// smartconnect (real EFTPOS hardware/internet), this never needed the
+// internet in the first place — it was only reachable through Base44's
+// cloud because that's where the app used to run. This is the local
+// equivalent, reading straight from the local database instead.
+// ============================================================================
+
+app.get('/api/functions/customerDisplay', (req, res) => {
+  try {
+    const list = LocalDB.list('StoreSettings');
+    const s = list[0] || {};
+    res.json({
+      store_name: s.store_name || 'Our Store',
+      receipt_footer: s.receipt_footer || '',
+      currency_symbol: s.currency_symbol || '$',
+      display_state: s.display_state || 'idle',
+      active_cart: Array.isArray(s.active_cart) ? s.active_cart : [],
+      active_order_number: s.active_order_number || '',
+      active_total: Number(s.active_total) || 0,
+      theme: s.theme || null,
+      cds_config: s.cds_config || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
 // Local file uploads — replaces Base44's UploadFile integration for photos
 // (menu items, staff, customer-display slides).
 // ============================================================================

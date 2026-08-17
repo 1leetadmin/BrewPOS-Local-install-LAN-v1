@@ -21,3 +21,7 @@ src/pages/Login.jsx                      merge=ours
 # --- Licensing (added 2026-08-16) ---
 server/local-license.js                  merge=ours
 src/components/LicenseGate.jsx           merge=ours
+
+# --- Electron shell (added 2026-08-17) — spawns the local server, handles
+# Bluetooth device pairing; needs to stay hand-authored ---
+electron/main.cjs                        merge=ours
