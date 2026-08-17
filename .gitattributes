@@ -29,3 +29,4 @@ electron/main.cjs                        merge=ours
 # --- Manual bug fixes (added 2026-08-17) ---
 src/components/ingredients/EventReconciliation.jsx  merge=ours
 src/lib/bluetoothPrinter.js               merge=ours
+src/components/pos/VoiceRecognition.jsx   merge=ours

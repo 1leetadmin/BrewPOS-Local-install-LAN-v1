@@ -4,6 +4,19 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+// Same debug logging used in bluetoothPrinter.js — writes into the same
+// %APPDATA%\BrewPOS Pilot\bluetooth-debug.log so both features' diagnostics
+// land in one place.
+function debugLog(message) {
+  try {
+    fetch('http://localhost:3001/api/debug-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: `[voice] ${message}` }),
+    }).catch(() => {});
+  } catch { /* best effort */ }
+}
+
 // Normalize text for matching: lowercase + convert number words to digits
 function normalizeForMatch(text) {
   const numWords = { one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10' };
@@ -118,6 +131,7 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
     if (!enabled) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    debugLog(`SpeechRecognition constructor available: ${!!SpeechRecognition}`);
     if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
@@ -127,6 +141,7 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
+      debugLog('onresult fired');
       let interim = '';
       let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -145,12 +160,14 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
     };
 
     recognition.onend = () => {
+      debugLog('onend fired');
       isListeningRef.current = false;
       setIsListening(false);
       setInterimText('');
     };
 
     recognition.onerror = (event) => {
+      debugLog(`onerror fired: ${event.error}`);
       if (event.error === 'no-speech') return; // silent — user just didn't speak
       if (event.error === 'not-allowed') {
         toast.error('Microphone access denied. Please allow mic permissions in your browser.');
@@ -172,15 +189,18 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
     const recognition = recognitionRef.current;
 
     if (!recognition) {
+      debugLog('toggleListening: no recognition instance (SpeechRecognition unsupported)');
       toast.error('Voice recognition not supported. Use Chrome on desktop.');
       return;
     }
 
     if (isListeningRef.current) {
+      debugLog('toggleListening: stopping');
       try { recognition.stop(); } catch (_) {}
       isListeningRef.current = false;
       setIsListening(false);
     } else {
+      debugLog('toggleListening: calling recognition.start()');
       setLastText('');
       setInterimText('');
       try {
