@@ -336,24 +336,12 @@ export default function Settings() {
             <ReceiptPrinterSettings settings={form} onChange={updateReceiptPrinter} />
           </CollapsibleCard>
 
-        {/* Voice */}
+        {/* Voice — disabled in this build; see src/components/pos/VoiceRecognition.jsx
+            for why (Web Speech API doesn't work inside Electron's window). */}
         <CollapsibleCard title="Voice Recognition" icon={Mic} storageKey="voice">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Enable Voice Input</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">Use microphone to add items by speaking</p>
-              </div>
-              <Switch checked={form.voice_enabled} onCheckedChange={v => update('voice_enabled', v)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Input value={form.voice_language} onChange={e => update('voice_language', e.target.value)} placeholder="e.g. en-US" />
-            </div>
-            <div className="p-3 bg-muted rounded-lg text-xs text-muted-foreground space-y-1">
-              <p className="font-semibold text-foreground">Voice Commands:</p>
-              <p>• Say an item name: "Cappuccino" or "2 Espresso"</p>
-              <p>• "Clear" or "Cancel" to empty the cart</p>
-              <p>• "Checkout" or "Pay" to start payment</p>
+            <div className="p-3 bg-muted rounded-lg text-xs text-muted-foreground">
+              Voice input isn't available in this build — it relies on a browser
+              capability that doesn't work inside a packaged Windows app.
             </div>
           </CollapsibleCard>
 

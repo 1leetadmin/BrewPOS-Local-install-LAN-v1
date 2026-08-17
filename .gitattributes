@@ -30,3 +30,4 @@ electron/main.cjs                        merge=ours
 src/components/ingredients/EventReconciliation.jsx  merge=ours
 src/lib/bluetoothPrinter.js               merge=ours
 src/components/pos/VoiceRecognition.jsx   merge=ours
+src/pages/Settings.jsx                    merge=ours
