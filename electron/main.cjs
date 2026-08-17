@@ -111,6 +111,19 @@ function startStaticServer(distPath) {
       const ext = path.extname(filePath).toLowerCase();
       res.setHeader('Content-Type', MIME_TYPES[ext] || 'application/octet-stream');
 
+      // Newer Chromium blocks powerful APIs (Bluetooth, USB, etc.) by
+      // default unless the page explicitly declares it's allowed via a
+      // Permissions-Policy header — separate from, and enforced earlier
+      // than, the runtime permission-prompt system (session.
+      // setPermissionCheckHandler/setPermissionRequestHandler, already set
+      // up in this file). This is a strong candidate for why Bluetooth
+      // requestDevice() has been failing before ever reaching any of that
+      // code: navigator.bluetooth.getAvailability() correctly reports the
+      // adapter exists, but the scan itself may be silently blocked at
+      // this earlier policy layer, which never shows up as a logged
+      // permission check because it isn't one.
+      res.setHeader('Permissions-Policy', 'bluetooth=(self), microphone=(self), usb=(self), serial=(self)');
+
       fs.readFile(filePath, (err, data) => {
         if (err) {
           res.writeHead(404);
