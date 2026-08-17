@@ -1,6 +1,11 @@
 const { app, BrowserWindow, shell, dialog, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+
+// A real, documented Chromium flag for Web Bluetooth's permissions model.
+// Not guaranteed to be the fix, but legitimate and low-risk to try alongside
+// the diagnostic below, which will tell us definitively either way.
+app.commandLine.appendSwitch('enable-features', 'WebBluetoothNewPermissionsBackend');
 const http = require('http');
 const fs = require('fs');
 
@@ -280,6 +285,23 @@ function createWindow() {
   });
 
   win.loadURL(`http://localhost:${APP_PORT}`);
+
+  // Diagnostic only: Ctrl+Shift+B opens Chromium's own internal Bluetooth
+  // adapter status page (chrome://bluetooth-internals) in a separate window,
+  // without disrupting the running POS session. This is the same diagnostic
+  // page real Chrome uses — it shows definitively whether Chromium's engine
+  // (inside this Electron app specifically) can see a Bluetooth adapter at
+  // all, rather than inferring it indirectly from requestDevice() failures.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.control && input.shift && input.key.toLowerCase() === 'b' && input.type === 'keyDown') {
+      const debugWin = new BrowserWindow({
+        width: 1000,
+        height: 700,
+        title: 'Bluetooth Diagnostics (Ctrl+Shift+B)',
+      });
+      debugWin.loadURL('chrome://bluetooth-internals/#adapter');
+    }
+  });
 
   // Open external links (Google OAuth, etc.) in the system browser.
   // Same-origin links (like /display for the Customer Display) open in a
