@@ -17,3 +17,7 @@ server/migration-seed/**                 merge=ours
 src/api/base44Client.js                  merge=ours
 src/lib/AuthContext.jsx                  merge=ours
 src/pages/Login.jsx                      merge=ours
+
+# --- Licensing (added 2026-08-16) ---
+server/local-license.js                  merge=ours
+src/components/LicenseGate.jsx           merge=ours

@@ -99,7 +99,6 @@ const auth = {
   async me() {
     return request('/auth/me');
   },
-
   async loginViaEmailPassword(email, password) {
     const result = await request('/auth/login', { method: 'POST', body: { email, password } });
     setToken(result.token);
@@ -179,4 +178,11 @@ export const base44 = {
   auth,
   functions,
   integrations,
+};
+
+// License gate — see server/local-license.js. Fully offline verification;
+// this just talks to the local server, never Base44 or the internet.
+export const license = {
+  status: () => request('/license/status'),
+  activate: (key) => request('/license/activate', { method: 'POST', body: { key } }),
 };

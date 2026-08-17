@@ -12,6 +12,7 @@ const LocalDB = require('./local-db');
 const LocalAuth = require('./local-auth');
 const LocalUploads = require('./local-uploads');
 const CacheFallback = require('./local-cache-fallback');
+const LocalLicense = require('./local-license');
 const { DATA_ROOT } = require('./data-root');
 
 const app = express();
@@ -26,6 +27,29 @@ function getToken(req) {
   const header = req.headers.authorization || '';
   return header.startsWith('Bearer ') ? header.slice(7) : null;
 }
+
+// ============================================================================
+// License gate — checked by electron/main.cjs before it decides whether to
+// show the app or the "enter your license key" screen. Fully offline;
+// see server/local-license.js for how keys are verified.
+// ============================================================================
+
+app.get('/api/license/status', async (req, res) => {
+  try {
+    res.json(await LocalLicense.getStatus());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/license/activate', async (req, res) => {
+  try {
+    const { key } = req.body || {};
+    res.json(await LocalLicense.activate(key || ''));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // ============================================================================
 // Local auth — replaces Base44 email/password + Google login entirely.

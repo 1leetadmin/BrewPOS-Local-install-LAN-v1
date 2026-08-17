@@ -10,8 +10,9 @@
 // PROTECTED file — never touched by a Base44 export sync.
 // ============================================================================
 
-import React, { createContext, useState, useContext, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
+import { base44, license } from '@/api/base44Client';
+import LicenseGate from '@/components/LicenseGate';
 
 const AuthContext = createContext();
 
@@ -21,6 +22,19 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+
+  // License gate — checked once on startup, independent of login. Whole app
+  // is blocked (not just individual features) until this resolves to
+  // licensed/trial. See server/local-license.js.
+  const [licenseStatus, setLicenseStatus] = useState(null);
+  const [licenseChecked, setLicenseChecked] = useState(false);
+
+  useEffect(() => {
+    license.status()
+      .then((status) => setLicenseStatus(status))
+      .catch(() => setLicenseStatus({ licensed: false, mode: 'error' }))
+      .finally(() => setLicenseChecked(true));
+  }, []);
 
   const checkUserAuth = useCallback(async () => {
     if (!base44.auth.isAuthenticated()) {
@@ -53,6 +67,22 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin();
   };
 
+  // Block everything behind the license gate until it's resolved AND valid.
+  // Deliberately rendered before authChecked/login — an unlicensed install
+  // shouldn't even reach the login screen. Also block on the initial check
+  // itself so there's no flash of the login screen before the gate appears.
+  if (!licenseChecked) {
+    return <div className="min-h-screen bg-[#1c1c1e]" />;
+  }
+  if (licenseStatus && !licenseStatus.licensed) {
+    return (
+      <LicenseGate
+        status={licenseStatus}
+        onActivated={(result) => setLicenseStatus({ licensed: true, mode: 'licensed', ...result })}
+      />
+    );
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -62,6 +92,7 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings: null,
       authChecked,
+      licenseStatus,
       logout,
       navigateToLogin,
       checkUserAuth,
