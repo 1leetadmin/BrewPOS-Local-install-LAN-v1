@@ -294,6 +294,15 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // Windows treats an app's identity (used for notifications, taskbar
+  // grouping, and — relevant here — some device-permission prompts like
+  // Bluetooth) differently for apps that don't explicitly register one.
+  // Electron apps get an auto-generated ID by default, but setting this
+  // explicitly and matching it to the installer's appId is the documented
+  // fix for a category of "Windows silently denies device access" issues.
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.base44.pos');
+  }
   setupPermissions();
   setupBluetoothDevicePicker();
   startPrintServer();
