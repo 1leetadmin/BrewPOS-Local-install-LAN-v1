@@ -131,7 +131,9 @@ export default function CartPanel({
               <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Tag className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold text-primary">{appliedDiscount.name} ({appliedDiscount.percentage}%)</span>
+                  <span className="text-sm font-semibold text-primary">
+                    {appliedDiscount.name} ({appliedDiscount.discount_type === 'fixed_amount' ? `$${(appliedDiscount.fixed_amount || 0).toFixed(2)}` : `${appliedDiscount.percentage}%`})
+                  </span>
                 </div>
                 <button onClick={() => onApplyDiscount(null)} className="text-muted-foreground hover:text-destructive transition-colors">
                   <X className="w-4 h-4" />
@@ -146,7 +148,7 @@ export default function CartPanel({
                     className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-colors font-medium"
                   >
                     <Tag className="w-3 h-3" />
-                    {d.name} {d.percentage}%
+                    {d.name} {d.discount_type === 'fixed_amount' ? `$${(d.fixed_amount || 0).toFixed(2)}` : `${d.percentage}%`}
                   </button>
                 ))}
               </div>
@@ -157,7 +159,7 @@ export default function CartPanel({
         <div className="space-y-1.5 text-sm">
           {discountAmount > 0 && (
             <div className="flex justify-between text-green-600">
-              <span>Discount ({appliedDiscount.percentage}%)</span>
+              <span>Discount ({appliedDiscount.discount_type === 'fixed_amount' ? `$${(appliedDiscount.fixed_amount || 0).toFixed(2)}` : `${appliedDiscount.percentage}%`})</span>
               <span className="font-mono">-${discountAmount.toFixed(2)}</span>
             </div>
           )}

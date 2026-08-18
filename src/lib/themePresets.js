@@ -308,6 +308,34 @@ export const ADDITIONAL_THEMES = {
       unselected: { background: '#fef3c7', text: '#78350f' },
     },
   },
+  glass: {
+    id: 'glass',
+    name: 'Glass',
+    mode: 'dark',
+    // `glass: true` triggers the frosted/translucent card treatment in
+    // index.css (backdrop-blur + semi-transparent panels) — see the
+    // `.theme-glass` rules there. Colors here are chosen to look right
+    // once that translucency + blur is layered on top.
+    glass: true,
+    colors: {
+      background: '#0f172a',
+      foreground: '#e2e8f0',
+      card: '#1e293b',
+      card_foreground: '#f1f5f9',
+      primary: '#38bdf8',
+      primary_foreground: '#0f172a',
+      secondary: '#334155',
+      muted: '#1e293b',
+      muted_foreground: '#94a3b8',
+      border: '#475569',
+      destructive: '#fb7185',
+    },
+    accent_swatches: ['#38bdf8', '#a78bfa', '#34d399', '#fb923c'],
+    modifier_button_default: {
+      selected: { background: '#38bdf8', text: '#0f172a' },
+      unselected: { background: '#33415580', text: '#f1f5f9' },
+    },
+  },
 };
 
 export const ALL_THEMES = { ...THEME_PRESETS, ...ADDITIONAL_THEMES };
@@ -335,6 +363,10 @@ export function normalizeTheme(theme) {
   return {
     active_preset: theme.active_preset || 'custom',
     mode: theme.mode === 'dark' ? 'dark' : 'light',
+    // Carries the frosted/translucent card treatment through save/reload —
+    // without this, picking the Glass preset would lose its blur effect
+    // the next time settings are loaded from storage.
+    glass: !!theme.glass,
     colors: { ...base.colors, ...(theme.colors || {}) },
     accent_swatches:
       Array.isArray(theme.accent_swatches) && theme.accent_swatches.length

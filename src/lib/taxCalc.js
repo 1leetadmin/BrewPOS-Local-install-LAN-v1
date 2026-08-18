@@ -27,7 +27,9 @@ export function computeOrderTotals(cart, taxRate = 0, taxInclusive = false, appl
   }
 
   const discountAmount = appliedDiscount
-    ? total * (appliedDiscount.percentage / 100)
+    ? appliedDiscount.discount_type === 'fixed_amount'
+      ? Math.min(appliedDiscount.fixed_amount || 0, total) // never discount below $0
+      : total * (appliedDiscount.percentage / 100)
     : 0;
 
   const finalTotal = total - discountAmount;
@@ -37,7 +39,7 @@ export function computeOrderTotals(cart, taxRate = 0, taxInclusive = false, appl
     taxTotal,
     discountAmount,
     total: finalTotal,
-    discountType: appliedDiscount ? 'percentage' : 'none',
-    discountPct: appliedDiscount?.percentage ?? 0,
+    discountType: appliedDiscount ? (appliedDiscount.discount_type === 'fixed_amount' ? 'fixed_amount' : 'percentage') : 'none',
+    discountPct: appliedDiscount?.discount_type === 'fixed_amount' ? 0 : (appliedDiscount?.percentage ?? 0),
   };
 }

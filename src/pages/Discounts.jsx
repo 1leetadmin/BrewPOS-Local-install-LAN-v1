@@ -6,13 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Percent } from 'lucide-react';
+import { Plus, Trash2, Percent, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Discounts() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('percentage'); // 'percentage' | 'fixed_amount'
   const [newPct, setNewPct] = useState('');
+  const [newFixedAmount, setNewFixedAmount] = useState('');
   const [newPrepaid, setNewPrepaid] = useState('');
 
   const { data: discounts = [] } = useQuery({
@@ -26,6 +28,7 @@ export default function Discounts() {
       queryClient.invalidateQueries({ queryKey: ['discounts'] });
       setNewName('');
       setNewPct('');
+      setNewFixedAmount('');
       setNewPrepaid('');
       toast.success('Discount created');
     },
@@ -45,12 +48,38 @@ export default function Discounts() {
   });
 
   const handleCreate = () => {
-    const pct = parseFloat(newPct);
-    if (!newName.trim() || isNaN(pct) || pct < 0 || pct > 100) {
-      toast.error('Please enter a name and a percentage between 0 and 100');
+    if (!newName.trim()) {
+      toast.error('Please enter a name');
       return;
     }
-    createMutation.mutate({ name: newName.trim(), percentage: pct, is_active: true, prepaid_amount: Number(newPrepaid) || 0 });
+    if (newType === 'fixed_amount') {
+      const amt = parseFloat(newFixedAmount);
+      if (isNaN(amt) || amt <= 0) {
+        toast.error('Please enter a dollar amount greater than 0');
+        return;
+      }
+      createMutation.mutate({
+        name: newName.trim(),
+        discount_type: 'fixed_amount',
+        fixed_amount: amt,
+        percentage: 0,
+        is_active: true,
+        prepaid_amount: Number(newPrepaid) || 0,
+      });
+    } else {
+      const pct = parseFloat(newPct);
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        toast.error('Please enter a percentage between 0 and 100');
+        return;
+      }
+      createMutation.mutate({
+        name: newName.trim(),
+        discount_type: 'percentage',
+        percentage: pct,
+        is_active: true,
+        prepaid_amount: Number(newPrepaid) || 0,
+      });
+    }
   };
 
   return (
@@ -65,16 +94,42 @@ export default function Discounts() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> New Discount</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="flex gap-3 items-end">
             <div className="flex-1 space-y-1">
               <Label className="text-xs">Name</Label>
               <Input placeholder="e.g. Staff Discount" value={newName} onChange={e => setNewName(e.target.value)} />
             </div>
-            <div className="w-32 space-y-1">
-              <Label className="text-xs">Percentage (%)</Label>
-              <Input type="number" min="0" max="100" step="1" placeholder="e.g. 20" value={newPct} onChange={e => setNewPct(e.target.value)} />
+            <div className="w-40 space-y-1">
+              <Label className="text-xs">Type</Label>
+              <div className="flex rounded-md border border-input overflow-hidden h-9">
+                <button
+                  type="button"
+                  onClick={() => setNewType('percentage')}
+                  className={`flex-1 text-xs font-medium flex items-center justify-center gap-1 ${newType === 'percentage' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground'}`}
+                >
+                  <Percent className="w-3 h-3" /> %
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewType('fixed_amount')}
+                  className={`flex-1 text-xs font-medium flex items-center justify-center gap-1 ${newType === 'fixed_amount' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground'}`}
+                >
+                  <DollarSign className="w-3 h-3" /> $
+                </button>
+              </div>
             </div>
+            {newType === 'percentage' ? (
+              <div className="w-32 space-y-1">
+                <Label className="text-xs">Percentage (%)</Label>
+                <Input type="number" min="0" max="100" step="1" placeholder="e.g. 20" value={newPct} onChange={e => setNewPct(e.target.value)} />
+              </div>
+            ) : (
+              <div className="w-32 space-y-1">
+                <Label className="text-xs">Amount ($)</Label>
+                <Input type="number" min="0" step="0.01" placeholder="e.g. 10.00" value={newFixedAmount} onChange={e => setNewFixedAmount(e.target.value)} />
+              </div>
+            )}
             <div className="w-36 space-y-1">
               <Label className="text-xs">Prepaid Amount ($)</Label>
               <Input type="number" min="0" step="0.01" placeholder="0.00" value={newPrepaid} onChange={e => setNewPrepaid(e.target.value)} />
@@ -95,11 +150,17 @@ export default function Discounts() {
           <Card key={d.id} className={d.is_active ? '' : 'opacity-50'}>
             <CardContent className="py-3 px-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Percent className="w-5 h-5 text-primary" />
+                {d.discount_type === 'fixed_amount'
+                  ? <DollarSign className="w-5 h-5 text-primary" />
+                  : <Percent className="w-5 h-5 text-primary" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm">{d.name}</p>
-                <p className="text-xs text-muted-foreground">{d.percentage}% off order total</p>
+                <p className="text-xs text-muted-foreground">
+                  {d.discount_type === 'fixed_amount'
+                    ? `$${(d.fixed_amount || 0).toFixed(2)} off order total`
+                    : `${d.percentage}% off order total`}
+                </p>
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="text-xs text-muted-foreground">Prepaid: $</span>
                   <input

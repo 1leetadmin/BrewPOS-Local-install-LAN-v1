@@ -27,6 +27,73 @@ function normalizeForMatch(text) {
   return result;
 }
 
+// Levenshtein edit distance, normalized to a 0-1 similarity score (1 = identical).
+// Used as a fallback when exact/substring matching fails — catches near-miss
+// transcriptions ("cappucino" vs "cappuccino", "flat wide" vs "flat white")
+// that speech recognition commonly produces, without hardcoding specific
+// mishearing pairs.
+function similarity(a, b) {
+  if (a === b) return 1;
+  if (!a.length || !b.length) return 0;
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dist = Array.from({ length: rows }, (_, i) => [i, ...Array(cols - 1).fill(0)]);
+  for (let j = 0; j < cols; j++) dist[0][j] = j;
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dist[i][j] = Math.min(dist[i - 1][j] + 1, dist[i][j - 1] + 1, dist[i - 1][j - 1] + cost);
+    }
+  }
+  const maxLen = Math.max(a.length, b.length);
+  return 1 - dist[rows - 1][cols - 1] / maxLen;
+}
+
+// Finds the best menu item match for a spoken item name. Tries exact
+// equality first, then word-boundary matching (not raw substring — that
+// lets short words accidentally match inside unrelated longer ones, e.g.
+// "cola" inside "chocolate"), preferring the most specific/longest match
+// among multiple hits (so "chai latte" matches "Chai Latte", not just
+// "Latte"). Falls back to fuzzy similarity for near-miss transcriptions
+// speech recognition commonly produces ("cappucino" vs "Cappuccino").
+const FUZZY_MATCH_THRESHOLD = 0.72;
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function wordBoundaryIncludes(haystack, needle) {
+  if (!needle) return false;
+  return new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(haystack);
+}
+
+function findBestMenuMatch(itemSearch, items) {
+  if (!itemSearch) return null;
+
+  const perfect = items.find((item) => item.name.toLowerCase() === itemSearch);
+  if (perfect) return perfect;
+
+  const candidates = items.filter((item) => {
+    const name = item.name.toLowerCase();
+    return wordBoundaryIncludes(itemSearch, name) || wordBoundaryIncludes(name, itemSearch);
+  });
+  if (candidates.length) {
+    return candidates.reduce((longest, c) => (c.name.length > longest.name.length ? c : longest));
+  }
+
+  let best = null;
+  let bestScore = 0;
+  for (const item of items) {
+    const name = item.name.toLowerCase();
+    const score = Math.max(similarity(itemSearch, name), ...name.split(' ').map((w) => similarity(itemSearch, w)));
+    if (score > bestScore) {
+      bestScore = score;
+      best = item;
+    }
+  }
+  return bestScore >= FUZZY_MATCH_THRESHOLD ? best : null;
+}
+
 // Parse the voice text for modifier options that match the item's modifier groups.
 // Returns { modifiers: [{ name, option, price_adjustment }], priceAdjustment: number }
 function parseVoiceModifiers(voiceText, item, presets) {
@@ -77,10 +144,9 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
   const recognitionRef = useRef(null);
   const isListeningRef = useRef(false);
 
-  const processCommand = useCallback((text) => {
-    const items = menuItemsRef.current;
+  // Parses one transcript into { quantity, itemSearch, lower }.
+  const parseTranscript = (text) => {
     const lower = text.toLowerCase().trim();
-
     const numWords = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 
     let quantity = 1;
@@ -101,28 +167,45 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
       .replace(/^(a|an|the)\s+/i, '')
       .trim();
 
-    if (lower.includes('clear') || lower.includes('cancel') || lower.includes('empty')) {
+    return { quantity, itemSearch, lower };
+  };
+
+  // Accepts either one transcript or several ranked alternatives from the
+  // same utterance (Chrome's speech recognition returns multiple guesses
+  // ranked by confidence — previously only the top one was ever tried, so
+  // a mis-heard top guess meant a silent failure even when a lower-ranked
+  // alternative was actually correct). Tries each in order; the first one
+  // that resolves to a real menu item wins.
+  const processCommand = useCallback((transcripts) => {
+    const items = menuItemsRef.current;
+    const alternatives = Array.isArray(transcripts) ? transcripts : [transcripts];
+    const parsed = alternatives.map(parseTranscript);
+
+    if (parsed.some((p) => p.lower.includes('clear') || p.lower.includes('cancel') || p.lower.includes('empty'))) {
       onCommandRef.current({ type: 'clear_cart' });
       toast.info('Cart cleared');
       return;
     }
-    if (lower.includes('checkout') || lower.includes('pay') || lower.includes('complete')) {
+    if (parsed.some((p) => p.lower.includes('checkout') || p.lower.includes('pay') || p.lower.includes('complete'))) {
       onCommandRef.current({ type: 'checkout' });
       return;
     }
 
-    const match = items.find(item => {
-      const name = item.name.toLowerCase();
-      return name === itemSearch || name.includes(itemSearch) || itemSearch.includes(name);
-    });
+    let match = null;
+    let matchedParse = parsed[0];
+    for (const p of parsed) {
+      match = findBestMenuMatch(p.itemSearch, items);
+      if (match) { matchedParse = p; break; }
+    }
 
     if (match) {
+      const { quantity, lower } = matchedParse;
       const { modifiers, priceAdjustment } = parseVoiceModifiers(lower, match, modifierPresetsRef.current || []);
       onCommandRef.current({ type: 'add_item', item: match, quantity, modifiers, priceAdjustment, skipDialog: true });
       const modSummary = modifiers.length ? ` (${modifiers.map(m => m.option).join(', ')})` : '';
       toast.success(`Added ${quantity}x ${match.name}${modSummary}`);
     } else {
-      toast.error(`"${itemSearch}" not found on menu`);
+      toast.error(`"${parsed[0].itemSearch}" not found on menu`);
     }
   }, []);
 
@@ -138,24 +221,31 @@ export default function VoiceRecognition({ onCommand, menuItems, modifierPresets
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
-    recognition.maxAlternatives = 1;
+    // Ask for multiple ranked guesses per utterance instead of just one —
+    // processCommand now tries each in order, so a mis-heard top guess no
+    // longer means an automatic failure if a lower-ranked alternative was
+    // actually right.
+    recognition.maxAlternatives = 5;
 
     recognition.onresult = (event) => {
       debugLog('onresult fired');
       let interim = '';
-      let final = '';
+      let finalAlternatives = [];
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
+          for (let j = 0; j < event.results[i].length; j++) {
+            finalAlternatives.push(event.results[i][j].transcript);
+          }
         } else {
           interim += event.results[i][0].transcript;
         }
       }
       setInterimText(interim);
-      if (final) {
-        setLastText(final);
+      if (finalAlternatives.length) {
+        debugLog(`alternatives: ${JSON.stringify(finalAlternatives)}`);
+        setLastText(finalAlternatives[0]);
         setInterimText('');
-        processCommand(final);
+        processCommand(finalAlternatives);
       }
     };
 

@@ -113,3 +113,26 @@
 .voice-active {
   animation: voice-pulse 1.5s ease-in-out infinite;
 }
+
+/* Glass theme — frosted, translucent panels with a soft blur, applied on
+   top of the Glass color preset (see themePresets.js). Scoped narrowly to
+   .theme-glass so it never affects any other theme. */
+.theme-glass {
+  background-image:
+    radial-gradient(circle at 15% 15%, hsl(var(--primary) / 0.12), transparent 40%),
+    radial-gradient(circle at 85% 85%, hsl(var(--primary) / 0.10), transparent 40%);
+  background-attachment: fixed;
+}
+.theme-glass .bg-card,
+.theme-glass [class~="bg-card"] {
+  background-color: hsl(var(--card) / 0.6) !important;
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+.theme-glass .bg-popover,
+.theme-glass [class~="bg-popover"] {
+  background-color: hsl(var(--popover) / 0.75) !important;
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}

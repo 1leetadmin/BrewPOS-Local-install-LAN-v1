@@ -6,9 +6,19 @@
       "type": "string",
       "description": "Display name of the discount (e.g. 'Staff 20%', 'Happy Hour')"
     },
+    "discount_type": {
+      "type": "string",
+      "enum": ["percentage", "fixed_amount"],
+      "default": "percentage",
+      "description": "Whether this discount takes a percentage off, or a fixed dollar amount off (capped at the order total)"
+    },
     "percentage": {
       "type": "number",
-      "description": "Discount percentage 0-100"
+      "description": "Discount percentage 0-100 (used when discount_type is 'percentage')"
+    },
+    "fixed_amount": {
+      "type": "number",
+      "description": "Fixed dollar amount off the order total, e.g. 10 for a $10 voucher (used when discount_type is 'fixed_amount')"
     },
     "is_active": {
       "type": "boolean",
@@ -27,6 +37,6 @@
   },
   "required": [
     "name",
-    "percentage"
+    "discount_type"
   ]
 }

@@ -31,3 +31,11 @@ src/components/ingredients/EventReconciliation.jsx  merge=ours
 src/lib/bluetoothPrinter.js               merge=ours
 src/components/pos/VoiceRecognition.jsx   merge=ours
 src/pages/Settings.jsx                    merge=ours
+
+# --- Glass theme + fixed-amount discounts (added 2026-08-17) ---
+src/lib/themePresets.js                   merge=ours
+src/lib/ThemeProvider.jsx                 merge=ours
+src/index.css                             merge=ours
+src/pages/Discounts.jsx                   merge=ours
+src/lib/taxCalc.js                        merge=ours
+src/components/pos/CartPanel.jsx          merge=ours

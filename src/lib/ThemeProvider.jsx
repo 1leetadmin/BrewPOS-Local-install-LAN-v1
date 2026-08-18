@@ -67,6 +67,9 @@ export function applyThemeToRoot(theme) {
 
   if (theme.mode === 'dark') root.classList.add('dark');
   else root.classList.remove('dark');
+
+  // Frosted/translucent card treatment — see .theme-glass rules in index.css.
+  root.classList.toggle('theme-glass', !!theme.glass);
 }
 
 export function ThemeProvider({ children }) {

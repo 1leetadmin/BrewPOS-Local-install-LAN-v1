@@ -368,6 +368,31 @@ app.delete('/api/cds-media', (req, res) => {
   }
 });
 
+// ============================================================================
+// One-time additive data migrations — run on every server startup, but each
+// one checks for its own marker first so it only ever applies once per
+// machine, even across many restarts. This is how new default data (like a
+// new discount) reaches installs that were already running, since the
+// first-run migration-seed only applies to brand-new installs.
+// ============================================================================
+
+function ensureDefaultDiscounts() {
+  const discounts = LocalDB.list('Discount');
+  const hasTenDollarVoucher = discounts.some((d) => d.name === '$10 Off Voucher');
+  if (!hasTenDollarVoucher) {
+    LocalDB.create('Discount', {
+      name: '$10 Off Voucher',
+      discount_type: 'fixed_amount',
+      fixed_amount: 10,
+      percentage: 0,
+      is_active: true,
+      prepaid_amount: 0,
+    });
+    console.log('[migration] Added default discount: $10 Off Voucher');
+  }
+}
+ensureDefaultDiscounts();
+
 app.listen(PORT, () => {
   console.log(`Local print server listening on http://localhost:${PORT}`);
 });
