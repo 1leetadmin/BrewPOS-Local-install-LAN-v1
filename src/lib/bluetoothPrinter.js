@@ -610,6 +610,7 @@ class BluetoothPrinterService {
    */
   async printOrderLabelsTo(printerId, { jobs, orderNumber, labelTotal, printer, onLabelPrinted, qrText = '' }) {
     const GAP_FEED_WAIT_MS = 2500;
+    debugLog(`printOrderLabelsTo: printerId=${printerId}, printer.id=${printer?.id}, printer.name=${printer?.name}, width_mm=${printer?.width_mm}, height_mm=${printer?.height_mm}, padding_mm=${printer?.padding_mm}, connection_type=${printer?.connection_type}, jobCount=${jobs.length}`);
     for (const job of jobs) {
       const labelBytes = this._buildLabelBytes({
         item: job.item,
@@ -619,6 +620,21 @@ class BluetoothPrinterService {
         printer,
         qrText,
       });
+      // Log the actual mode/pitch commands present in this specific label's
+      // bytes, so we can directly compare "what we told the printer to do"
+      // against what physically came out — rather than trusting the
+      // calculation in isolation.
+      const modeCounts = { normal: 0, medium: 0, double: 0 };
+      let pitchSeen = null;
+      for (let i = 0; i < labelBytes.length - 2; i++) {
+        if (labelBytes[i] === 0x1B && labelBytes[i + 1] === 0x21) {
+          if (labelBytes[i + 2] === 0x00) modeCounts.normal++;
+          else if (labelBytes[i + 2] === 0x10) modeCounts.medium++;
+          else if (labelBytes[i + 2] === 0x30) modeCounts.double++;
+        }
+        if (labelBytes[i] === 0x1B && labelBytes[i + 1] === 0x33) pitchSeen = labelBytes[i + 2];
+      }
+      debugLog(`  label for "${job.item?.name}": ${labelBytes.length} bytes, pitch=${pitchSeen}, modes=${JSON.stringify(modeCounts)}`);
       await this._writeTo(printerId, new Uint8Array(labelBytes));
       // Wait for the gap-feed motor to complete before sending the next label.
       // This settled wait is the printer's ready signal — the label is now

@@ -4,6 +4,16 @@ import { getPrinterConfig } from '@/lib/printerRouting';
 import { printLabelGroup, effectiveConnectionType } from '@/lib/printerDriver';
 import { resolveQrText } from '@/lib/qrCode';
 
+function debugLog(message) {
+  try {
+    fetch('http://localhost:3001/api/debug-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: `[order-print] ${message}` }),
+    }).catch(() => {});
+  } catch { /* best effort */ }
+}
+
 /**
  * Run a set of pre-numbered, per-printer label jobs through the multi-printer
  * router. USB/LAN printers print via the local Node server; Bluetooth
@@ -21,9 +31,11 @@ export async function printOrderLabelJobs(printerGroups, labelTotal, settings, {
   const qrText = settings?.label_qr_enabled ? resolveQrText(settings) : '';
   let sent = 0;
   let fallback = 0;
+  debugLog(`printOrderLabelJobs: settings.label_printers=${JSON.stringify((settings?.label_printers || []).map(p => ({ id: p.id, name: p.name, width_mm: p.width_mm, height_mm: p.height_mm })))}`);
   for (const printerId of Object.keys(printerGroups)) {
     const jobs = printerGroups[printerId];
     const printer = getPrinterConfig(printerId, settings);
+    debugLog(`  resolving printerId="${printerId}" -> ${printer ? `found: ${printer.name} (width_mm=${printer.width_mm}, height_mm=${printer.height_mm})` : 'NOT FOUND — falling back to browser print dialog'}`);
     if (!printer) {
       printDrinkLabels(jobs, orderNumber, settings, labelTotal);
       fallback++;
@@ -37,6 +49,7 @@ export async function printOrderLabelJobs(printerGroups, labelTotal, settings, {
     const usable = connectionType === 'usb' || connectionType === 'lan'
       ? true
       : printerService.isConnectedTo(printerId);
+    debugLog(`  connectionType=${connectionType}, usable=${usable}`);
 
     if (!usable) {
       printDrinkLabels(jobs, orderNumber, settings, labelTotal);

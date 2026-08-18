@@ -43,3 +43,4 @@ src/components/pos/CartPanel.jsx          merge=ours
 # --- Label print fit fixes (added 2026-08-18) ---
 server/printer.js                         merge=ours
 src/lib/labelFit.js                       merge=ours
+src/lib/orderPrinting.js                  merge=ours
