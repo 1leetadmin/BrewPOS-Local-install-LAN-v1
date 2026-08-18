@@ -124,9 +124,13 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ],
       "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "BrewPOS-Pilot-v${version}-Portable.${ext}"
     },
     "nsis": {
       "oneClick": false,

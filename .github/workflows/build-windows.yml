@@ -79,5 +79,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BrewPOS-Pilot-Installer
-          path: release/*.exe
+          path: release/*Setup*.exe
+          if-no-files-found: error
+
+      - name: Upload portable (for quick testing — no install/uninstall needed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-Portable
+          path: release/*Portable*.exe
           if-no-files-found: error
