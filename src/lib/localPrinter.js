@@ -8,7 +8,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 
-const BASE = 'http://localhost:3001';
+const BASE = `http://${window.location.hostname}:3001`;
 
 function normalize(printer) {
   if (typeof printer === 'string') return { name: printer, connection_type: 'usb' };

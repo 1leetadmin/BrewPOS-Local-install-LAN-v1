@@ -128,8 +128,12 @@ function startStaticServer(distPath) {
       }
       resolve();
     });
-    staticServer.listen(APP_PORT, 'localhost', () => {
-      console.log(`BrewPOS app server on http://localhost:${APP_PORT}`);
+    // Binds to all network interfaces (not just localhost) so devices on
+    // the same WiFi — the KDS staff tablet, the ready-order customer
+    // screen — can reach this PC's UI over the LAN. Still fully offline:
+    // this is local network traffic only, no internet involved.
+    staticServer.listen(APP_PORT, '0.0.0.0', () => {
+      console.log(`BrewPOS app server on http://localhost:${APP_PORT} (also reachable via this PC's LAN IP)`);
       resolve();
     });
   });

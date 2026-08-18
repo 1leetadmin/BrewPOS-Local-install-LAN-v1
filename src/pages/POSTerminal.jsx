@@ -443,6 +443,14 @@ export default function POSTerminal() {
     const { groups: printerGroups, labelTotal } = buildLabelJobsFromUnits(units, menuItems, settings || {});
     const allJobs = Object.values(printerGroups).flat();
 
+    // Push a ticket to the KDS "order ready" board — the staff tablet and
+    // customer-facing ready screen both poll this same record. Best-effort:
+    // a failure here shouldn't block the rest of checkout.
+    base44.entities.KdsTicket.create({
+      order_number: orderNumber,
+      status: 'queued',
+    }).catch(() => {});
+
     const doPrint = async () => {
       const { sent, fallback } = await printOrderLabelJobs(printerGroups, labelTotal, settings, {
         orderNumber,

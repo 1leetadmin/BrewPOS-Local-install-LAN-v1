@@ -11,7 +11,13 @@
 // PROTECTED file — never touched by a Base44 export sync (see .gitattributes).
 // ============================================================================
 
-const API_BASE = 'http://localhost:3001/api';
+// Derived from the current page's hostname rather than hardcoded — this
+// file also loads on devices reaching the PC over LAN (the KDS staff
+// tablet, the ready-order customer screen), where 'localhost' would
+// resolve to the tablet itself, not this PC. When loaded as
+// http://<pc-lan-ip>:3000, API calls correctly go to
+// http://<pc-lan-ip>:3001 instead.
+const API_BASE = `http://${window.location.hostname}:3001/api`;
 const TOKEN_KEY = 'brewpos_local_token';
 
 function getToken() {
@@ -87,7 +93,7 @@ function entityClient(entityName) {
 const ENTITY_NAMES = [
   'StaffUser', 'MenuPageLayout', 'IngredientTransaction', 'ModifierPreset',
   'MenuItem', 'OrderItem', 'User', 'Discount', 'StoreSettings', 'TimeEntry',
-  'Event', 'Order', 'Ingredient',
+  'Event', 'Order', 'Ingredient', 'KdsTicket',
 ];
 
 const entities = {};

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 // land in one place.
 function debugLog(message) {
   try {
-    fetch('http://localhost:3001/api/debug-log', {
+    fetch(`http://${window.location.hostname}:3001/api/debug-log`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: `[voice] ${message}` }),

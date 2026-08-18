@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi } from 'lucide-react';
+import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,64 @@ import ThemeSettings from '@/components/settings/ThemeSettings';
 import QrCodeLibrary from '@/components/settings/QrCodeLibrary';
 import SmartConnectSettings from '@/components/settings/SmartConnectSettings';
 import CollapsibleCard from '@/components/settings/CollapsibleCard';
+
+function NetworkAccessCard() {
+  const { data } = useQuery({
+    queryKey: ['networkInfo'],
+    queryFn: async () => {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/network-info`);
+      return res.json();
+    },
+    refetchInterval: 10000,
+  });
+  const ip = data?.addresses?.[0];
+
+  const copy = (url) => {
+    navigator.clipboard.writeText(url);
+    toast.success('Copied');
+  };
+
+  if (!ip) {
+    return (
+      <CollapsibleCard title="Network Access (KDS / Order Ready)" icon={Tablet} storageKey="network">
+        <p className="text-sm text-muted-foreground">
+          Could not detect a network address. Make sure this PC is connected to WiFi/LAN.
+        </p>
+      </CollapsibleCard>
+    );
+  }
+
+  const links = [
+    { label: 'Staff Order Board (tablet)', path: '/kds' },
+    { label: 'Customer Ready Screen', path: '/order-ready' },
+    { label: 'Customer Display (menu slideshow)', path: '/display' },
+  ];
+
+  return (
+    <CollapsibleCard title="Network Access (KDS / Order Ready)" icon={Tablet} storageKey="network">
+      <p className="text-xs text-muted-foreground mb-3">
+        Type these into the browser on your staff tablet or customer screen — they must be on
+        the same WiFi/network as this PC.
+      </p>
+      <div className="space-y-2">
+        {links.map((l) => {
+          const url = `http://${ip}:3000${l.path}`;
+          return (
+            <div key={l.path} className="flex items-center justify-between gap-2 p-2 bg-muted rounded-lg">
+              <div className="min-w-0">
+                <p className="text-xs font-medium">{l.label}</p>
+                <p className="text-xs text-muted-foreground font-mono truncate">{url}</p>
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0" onClick={() => copy(url)}>
+                <Copy className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </CollapsibleCard>
+  );
+}
 import { normalizeTheme, buildThemeFromPreset } from '@/lib/themePresets';
 
 const FONT_FAMILIES = ['Arial', 'Arial Black', 'Courier New', 'Georgia', 'Impact', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'];
@@ -356,6 +414,9 @@ export default function Settings() {
               <p>• "Checkout" or "Pay" to start payment</p>
             </div>
           </CollapsibleCard>
+
+        {/* Network Access — KDS / Order Ready URLs */}
+        <NetworkAccessCard />
 
         {/* SmartConnect EFTPOS */}
         <CollapsibleCard title="SmartConnect EFTPOS" icon={Wifi} storageKey="smartconnect">

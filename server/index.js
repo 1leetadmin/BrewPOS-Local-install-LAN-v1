@@ -8,6 +8,7 @@ const cors = require('cors');
 const { buildReceipt, buildDrinkTicket, buildLabelBytes, sendToPrinter, isPrinterConnected, getOsPrinterNames } = require('./printer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const LocalDB = require('./local-db');
 const LocalAuth = require('./local-auth');
 const LocalUploads = require('./local-uploads');
@@ -46,6 +47,30 @@ app.post('/api/debug-log', (req, res) => {
     const logPath = path.join(DATA_ROOT, 'bluetooth-debug.log');
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] [renderer] ${message}\n`);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
+// Network info — lets Settings show the actual URLs to type into other
+// devices on the same WiFi (the KDS staff tablet, the order-ready customer
+// screen), instead of Peter needing to hunt down this PC's IP address
+// manually via Windows network settings.
+// ============================================================================
+
+app.get('/api/network-info', (req, res) => {
+  try {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          addresses.push(iface.address);
+        }
+      }
+    }
+    res.json({ addresses });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

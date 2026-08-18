@@ -37,7 +37,7 @@ export function getAuthToken() {
   return '';
 }
 
-const PRINT_SERVER_URL = 'http://localhost:3001';
+const PRINT_SERVER_URL = `http://${window.location.hostname}:3001`;
 
 // Only the settings fields the server needs to build the receipt ESC/POS and
 // route it to the right printer — avoids sending the full settings object

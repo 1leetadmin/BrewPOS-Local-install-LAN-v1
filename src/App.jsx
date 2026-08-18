@@ -27,14 +27,20 @@ import IngredientDashboard from '@/pages/IngredientDashboard';
 import StaffPortal from '@/pages/StaffPortal';
 import StaffTimekeeping from '@/pages/StaffTimekeeping';
 import { StaffAuthProvider } from '@/lib/StaffAuthContext';
+import KdsBoard from '@/pages/KdsBoard';
+import OrderReadyDisplay from '@/pages/OrderReadyDisplay';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const location = useLocation();
 
-  // Customer Display Screen — a public, read-only surface for any tablet.
-  // Bypass the auth gate entirely so unauthenticated devices can open /display.
+  // Customer Display Screen, KDS staff board, and the customer-facing
+  // order-ready screen are all public, dedicated-purpose surfaces meant to
+  // run unattended on a tablet/second screen — bypass the auth gate
+  // entirely so they don't need anyone to log in on that device.
   if (location.pathname === '/display') return <CustomerDisplay />;
+  if (location.pathname === '/kds') return <KdsBoard />;
+  if (location.pathname === '/order-ready') return <OrderReadyDisplay />;
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (

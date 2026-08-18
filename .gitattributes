@@ -44,3 +44,9 @@ src/components/pos/CartPanel.jsx          merge=ours
 server/printer.js                         merge=ours
 src/lib/labelFit.js                       merge=ours
 src/lib/orderPrinting.js                  merge=ours
+
+# --- KDS order-ready board (added 2026-08-18) ---
+src/pages/KdsBoard.jsx                    merge=ours
+src/pages/OrderReadyDisplay.jsx           merge=ours
+src/lib/spokenNumber.js                   merge=ours
+src/App.jsx                               merge=ours
