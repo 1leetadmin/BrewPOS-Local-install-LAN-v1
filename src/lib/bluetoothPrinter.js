@@ -229,6 +229,7 @@ class BluetoothPrinterService {
   }
 
   async connectDevice(printerId, device) {
+    debugLog(`connectDevice: printerId="${printerId}", device.name="${device?.name}"`);
     const existing = this.connections[printerId];
     if (existing) {
       existing.userDisconnected = false;
@@ -263,8 +264,15 @@ class BluetoothPrinterService {
     this._lastPrinterId = printerId;
 
     c.server = await device.gatt.connect();
-    c.txCharacteristic = await this._resolveCharacteristic(c.server);
+    debugLog(`connectDevice: printerId="${printerId}" GATT connected, resolving characteristic...`);
+    try {
+      c.txCharacteristic = await this._resolveCharacteristic(c.server);
+    } catch (charErr) {
+      debugLog(`connectDevice: printerId="${printerId}" FAILED to resolve a known characteristic: ${charErr.name}: ${charErr.message} — this device may not expose any of the service UUIDs this app knows about`);
+      throw charErr;
+    }
     c.isConnected = true;
+    debugLog(`connectDevice: printerId="${printerId}" fully connected (isConnected=true), characteristic found`);
     this._emit(printerId, 'connected');
     return device.name || 'Printer';
   }
@@ -283,21 +291,29 @@ class BluetoothPrinterService {
   async connectSmart(printerId = '__legacy__') {
     const existing = this.connections[printerId];
     if (existing?.isConnected) {
+      debugLog(`connectSmart: printerId="${printerId}" already connected, reusing`);
       return this.getDeviceName(printerId) || 'Printer';
     }
 
     if (this.canAutoReconnect) {
       const stored = loadStoredDevices();
       const storedName = stored[printerId];
+      debugLog(`connectSmart: printerId="${printerId}" canAutoReconnect=true, storedName=${storedName || '(none)'}`);
       if (storedName) {
         try {
           const devices = await navigator.bluetooth.getDevices();
+          debugLog(`connectSmart: getDevices() returned ${devices.length} previously-granted device(s): ${devices.map(d => d.name).join(', ')}`);
           const device = devices.find(d => d.name === storedName);
           if (device) {
             return await this.connectDevice(printerId, device);
           }
-        } catch (_) {}
+          debugLog(`connectSmart: no previously-granted device matched stored name "${storedName}" — falling back to picker`);
+        } catch (silentErr) {
+          debugLog(`connectSmart: silent auto-reconnect attempt failed: ${silentErr.name}: ${silentErr.message} — falling back to picker`);
+        }
       }
+    } else {
+      debugLog(`connectSmart: printerId="${printerId}" canAutoReconnect=false — going straight to picker`);
     }
 
     const device = await this.requestDevice();
