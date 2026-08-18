@@ -378,8 +378,22 @@ function buildLabelBytes({ item, orderNumber, labelIndex, labelTotal, printer, q
   const qrModuleSize = qrText ? Math.max(2, Math.min(16, Math.floor(qrTargetMm * DOT_MM / QR_MODULE_COUNT))) : 0;
   const qrHeightDots = qrText ? qrModuleSize * QR_MODULE_COUNT : 0;
 
-  const setAlign = (a) =>
-    a === 'center' ? [ESC_B, 0x61, 0x01] : a === 'right' ? [ESC_B, 0x61, 0x02] : [ESC_B, 0x61, 0x00];
+  // ESC/POS's own justify command (ESC a n) aligns relative to the PRINTER's
+  // own internal notion of page width — which is fixed by its own firmware/
+  // configuration, not by our width_mm setting. That's why right/center
+  // alignment never moved when width_mm changed, even though text wrapping
+  // did (wrapping is computed entirely in software from printableWmm).
+  // Fixed by computing alignment ourselves — padding with literal spaces
+  // sized to our own charsPerLine — and always sending left-justify to the
+  // printer, so alignment is fully under our control and genuinely scales
+  // with width_mm like everything else.
+  const setAlign = () => [ESC_B, 0x61, 0x00];
+  const padForAlign = (line, align, charsPerLine) => {
+    const gap = Math.max(0, charsPerLine - line.length);
+    if (align === 'right') return ' '.repeat(gap) + line;
+    if (align === 'center') return ' '.repeat(Math.floor(gap / 2)) + line;
+    return line;
+  };
   const setBold = (on) => [ESC_B, 0x45, on ? 0x01 : 0x00];
 
   const modeCmd = (pt, demoteLevel) => {
@@ -427,11 +441,12 @@ function buildLabelBytes({ item, orderNumber, labelIndex, labelTotal, printer, q
     const wrappedLines = wrapText(text, charsPerLine);
     const cmds = [];
     for (const line of wrappedLines) {
+      const aligned = padForAlign(line, field.align || 'left', charsPerLine);
       cmds.push(
-        ...setAlign(field.align || 'left'),
+        ...setAlign(),
         ...cmd,
         ...setBold(field.bold),
-        ...textToBytes(line),
+        ...textToBytes(aligned),
         ...setBold(false),
         ESC_B, 0x21, 0x00,
         LF_B,
@@ -523,9 +538,16 @@ function buildLabelBytes({ item, orderNumber, labelIndex, labelTotal, printer, q
     }
   }
 
+  const setLeftMargin = (dots) => [0x1D, 0x4C, dots & 0xFF, (dots >> 8) & 0xFF];
+
   const bodyCmds = bodyFields.flatMap((f) => {
     if (f.key === 'qr_code' && qrText) {
-      return [...setAlign('center'), ...buildQrEscPos(qrText, qrModuleSize)];
+      // The printer renders the QR itself (GS ( k) rather than us sending a
+      // raster image, so centering it also can't rely on the printer's own
+      // justify state (same reason text alignment needed fixing above) — set
+      // an absolute left margin computed from our own printableWmm instead.
+      const leftMarginDots = Math.max(0, Math.floor((printableWmm * DOT_MM - qrHeightDots) / 2));
+      return [...setLeftMargin(leftMarginDots), ...buildQrEscPos(qrText, qrModuleSize), ...setLeftMargin(0)];
     }
     const content = getContent(f.key);
     if (Array.isArray(content)) return content.flatMap((line) => printLine(line, f, demote));
