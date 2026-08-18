@@ -382,13 +382,22 @@ function buildLabelBytes({ item, orderNumber, labelIndex, labelTotal, printer, q
     a === 'center' ? [ESC_B, 0x61, 0x01] : a === 'right' ? [ESC_B, 0x61, 0x02] : [ESC_B, 0x61, 0x00];
   const setBold = (on) => [ESC_B, 0x45, on ? 0x01 : 0x00];
 
-  const modeCmd = (pt, demote) => {
-    if (demote) return [ESC_B, 0x21, 0x00];
+  const modeCmd = (pt, demoteLevel) => {
+    // Level 2: everything collapses to the smallest ESC/POS text mode.
+    if (demoteLevel >= 2) return [ESC_B, 0x21, 0x00];
+    // Level 1: caps the largest tier at medium — double-height fields drop
+    // to medium, medium/normal fields are unaffected. A real intermediate
+    // step instead of jumping straight from "full size" to "smallest".
+    if (demoteLevel === 1) {
+      if (pt >= 9) return [ESC_B, 0x21, 0x10];
+      return [ESC_B, 0x21, 0x00];
+    }
+    // Level 0: each field at its own configured tier.
     if (pt >= 12) return [ESC_B, 0x21, 0x30];
     if (pt >= 9) return [ESC_B, 0x21, 0x10];
     return [ESC_B, 0x21, 0x00];
   };
-  const charMmFor = (pt, demote) => (demote || pt < 12) ? CHAR_MM_NORMAL : CHAR_MM_WIDE;
+  const charMmFor = (pt, demoteLevel) => (demoteLevel >= 1 || pt < 12) ? CHAR_MM_NORMAL : CHAR_MM_WIDE;
 
   const wrapText = (text, charsPerLine) => {
     if (!text || charsPerLine <= 0) return text ? [text] : [];
@@ -409,11 +418,11 @@ function buildLabelBytes({ item, orderNumber, labelIndex, labelTotal, printer, q
     return lines.length ? lines : [''];
   };
 
-  const printLine = (text, field, demote) => {
+  const printLine = (text, field, demoteLevel) => {
     if (!text) return [];
     const pt = Number(field.font_size_pt) || 7;
-    const cmd = modeCmd(pt, demote);
-    const charMm = charMmFor(pt, demote);
+    const cmd = modeCmd(pt, demoteLevel);
+    const charMm = charMmFor(pt, demoteLevel);
     const charsPerLine = Math.floor(printableWmm / charMm);
     const wrappedLines = wrapText(text, charsPerLine);
     const cmds = [];
@@ -480,14 +489,30 @@ function buildLabelBytes({ item, orderNumber, labelIndex, labelTotal, printer, q
   };
 
   const availableDots = Math.max(1, Math.round((heightMm - paddingMm * 2) * DOT_MM) - qrHeightDots);
-  let demote = false;
+  const PITCH_MID = Math.round((PITCH_DEFAULT + PITCH_MIN) / 2);
+  // Graduated fit: try full configured sizes first; if content overflows,
+  // step down one level at a time rather than jumping straight from full
+  // size to smallest:
+  //   1. cap double-height/width fields to medium mode (narrower text can
+  //      mean fewer wrapped lines) AND tighten line spacing to PITCH_MID
+  //   2. if still overflowing, drop everything to the smallest mode with
+  //      spacing compressed down to PITCH_MIN
+  // Level 1 always applies its own pitch, not just a mode/width change —
+  // otherwise it provides no height relief at all for content that wasn't
+  // wrapping to begin with (only genuinely helps overflow that's purely
+  // "too many fields", the most common real case).
+  let demote = 0;
   let pitch = PITCH_DEFAULT;
   let leadingDots = 0;
-  if (measureLines(visibleFields, false) * PITCH_DEFAULT > availableDots) {
-    demote = true;
-    const nLines = measureLines(visibleFields, true);
-    pitch = Math.max(PITCH_MIN, Math.floor(availableDots / Math.max(1, nLines)));
-    leadingDots = Math.max(0, Math.floor((availableDots - nLines * pitch) / 2));
+  if (measureLines(visibleFields, 0) * PITCH_DEFAULT > availableDots) {
+    demote = 1;
+    pitch = PITCH_MID;
+    if (measureLines(visibleFields, 1) * PITCH_MID > availableDots) {
+      demote = 2;
+      const nLines = measureLines(visibleFields, 2);
+      pitch = Math.max(PITCH_MIN, Math.floor(availableDots / Math.max(1, nLines)));
+      leadingDots = Math.max(0, Math.floor((availableDots - nLines * pitch) / 2));
+    }
   }
 
   const headerCmds = [];

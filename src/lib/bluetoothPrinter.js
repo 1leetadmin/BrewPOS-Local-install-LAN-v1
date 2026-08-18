@@ -425,16 +425,21 @@ class BluetoothPrinterService {
     const setBold = (on) => [ESC, 0x45, on ? 0x01 : 0x00];
 
     // ESC/POS fonts are discrete (normal / double-height / double-width+height),
-    // not continuously scalable. When content overflows height_mm, `demote`
-    // forces every line to normal mode so line-feed pitch can be compressed
-    // below a double-height line's height without overlapping the next line.
-    const modeCmd = (pt, demote) => {
-      if (demote) return [ESC, 0x21, 0x00];
+    // not continuously scalable. When content overflows height_mm, this steps
+    // down one level at a time — full sizes, then double-height fields capped
+    // at medium, then everything at the smallest mode with compressed line
+    // pitch — rather than jumping straight from full size to smallest.
+    const modeCmd = (pt, demoteLevel) => {
+      if (demoteLevel >= 2) return [ESC, 0x21, 0x00];
+      if (demoteLevel === 1) {
+        if (pt >= 9) return [ESC, 0x21, 0x10];
+        return [ESC, 0x21, 0x00];
+      }
       if (pt >= 12) return [ESC, 0x21, 0x30];
       if (pt >= 9)  return [ESC, 0x21, 0x10];
       return [ESC, 0x21, 0x00];
     };
-    const charMmFor = (pt, demote) => (demote || pt < 12) ? CHAR_MM_NORMAL : CHAR_MM_WIDE;
+    const charMmFor = (pt, demoteLevel) => (demoteLevel >= 1 || pt < 12) ? CHAR_MM_NORMAL : CHAR_MM_WIDE;
 
     const wrapText = (text, charsPerLine) => {
       if (!text || charsPerLine <= 0) return text ? [text] : [];
@@ -455,11 +460,11 @@ class BluetoothPrinterService {
       return lines.length ? lines : [''];
     };
 
-    const printLine = (text, field, demote) => {
+    const printLine = (text, field, demoteLevel) => {
       if (!text) return [];
       const pt = Number(field.font_size_pt) || 7;
-      const cmd = modeCmd(pt, demote);
-      const charMm = charMmFor(pt, demote);
+      const cmd = modeCmd(pt, demoteLevel);
+      const charMm = charMmFor(pt, demoteLevel);
       const charsPerLine = Math.floor(printableWmm / charMm);
       const wrappedLines = wrapText(text, charsPerLine);
       const cmds = [];
@@ -535,19 +540,29 @@ class BluetoothPrinterService {
     // --- Fit-to-size ---
     // Measure total content height and compress only when it exceeds the
     // printable label area. When content already fits, behaviour is unchanged
-    // (configured font modes + default 24-dot pitch). When it overflows:
-    //   1. demote every line to normal mode (ESC/POS can't scale fonts continuously)
-    //   2. reduce line-feed pitch (ESC 0x33) down to PITCH_MIN (16 dots)
-    //   3. vertically centre via a leading dot feed (ESC J)
+    // (configured font modes + default 24-dot pitch). When it overflows, step
+    // down one level at a time rather than jumping straight to smallest:
+    //   1. cap double-height fields at medium mode AND tighten line spacing
+    //      to a middle pitch — the pitch change matters because a mode/width
+    //      change alone gives zero height relief for content that wasn't
+    //      wrapping to begin with (the most common real overflow case)
+    //   2. if still overflowing, demote every line to normal mode and
+    //      reduce line-feed pitch (ESC 0x33) down to PITCH_MIN (16 dots),
+    //      vertically centred via a leading dot feed (ESC J)
     const availableDots = Math.max(1, Math.round((heightMm - paddingMm * 2) * DOT_MM) - qrHeightDots);
-    let demote = false;
+    const PITCH_MID = Math.round((PITCH_DEFAULT + PITCH_MIN) / 2);
+    let demote = 0;
     let pitch = PITCH_DEFAULT;
     let leadingDots = 0;
-    if (measureLines(visibleFields, false) * PITCH_DEFAULT > availableDots) {
-      demote = true;
-      const nLines = measureLines(visibleFields, true);
-      pitch = Math.max(PITCH_MIN, Math.floor(availableDots / Math.max(1, nLines)));
-      leadingDots = Math.max(0, Math.floor((availableDots - nLines * pitch) / 2));
+    if (measureLines(visibleFields, 0) * PITCH_DEFAULT > availableDots) {
+      demote = 1;
+      pitch = PITCH_MID;
+      if (measureLines(visibleFields, 1) * PITCH_MID > availableDots) {
+        demote = 2;
+        const nLines = measureLines(visibleFields, 2);
+        pitch = Math.max(PITCH_MIN, Math.floor(availableDots / Math.max(1, nLines)));
+        leadingDots = Math.max(0, Math.floor((availableDots - nLines * pitch) / 2));
+      }
     }
 
     const headerCmds = [];
