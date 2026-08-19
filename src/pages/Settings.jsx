@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy } from 'lucide-react';
+import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +19,78 @@ import ThemeSettings from '@/components/settings/ThemeSettings';
 import QrCodeLibrary from '@/components/settings/QrCodeLibrary';
 import SmartConnectSettings from '@/components/settings/SmartConnectSettings';
 import CollapsibleCard from '@/components/settings/CollapsibleCard';
+
+const BACKUP_CATEGORY_INFO = [
+  { key: 'core', label: 'Core Setup', description: 'Menu items, modifiers, discounts, menu layout, ingredient catalog, store settings' },
+  { key: 'staff', label: 'Staff', description: 'Staff accounts and PINs' },
+  { key: 'transactions', label: 'Transactions & Financial', description: 'Orders, order items, ingredient usage, time clock entries, events' },
+];
+
+function BackupCard() {
+  const [selected, setSelected] = useState({ core: true, staff: true, transactions: true });
+  const [exporting, setExporting] = useState(false);
+
+  const toggle = (key) => setSelected((s) => ({ ...s, [key]: !s[key] }));
+
+  const handleExport = async () => {
+    const categories = Object.keys(selected).filter((k) => selected[k]);
+    if (categories.length === 0) {
+      toast.error('Select at least one category to back up');
+      return;
+    }
+    setExporting(true);
+    try {
+      const url = `http://${window.location.hostname}:3001/api/backup/export?categories=${categories.join(',')}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Backup failed (${res.status})`);
+      const blob = await res.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = downloadUrl;
+      a.download = `BrewPOS-Backup-${dateStr}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      toast.success('Backup downloaded');
+    } catch (err) {
+      toast.error(`Backup failed: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <CollapsibleCard title="Backup" icon={Download} storageKey="backup">
+      <p className="text-xs text-muted-foreground mb-3">
+        Downloads a zip file to this PC with the data you select below. This never requires
+        internet — it's the one backup method guaranteed to work every time. Doesn't include
+        your admin login, license key, or Bluetooth pairing info.
+      </p>
+      <div className="space-y-3 mb-4">
+        {BACKUP_CATEGORY_INFO.map((cat) => (
+          <div key={cat.key} className="flex items-start gap-3">
+            <Checkbox
+              id={`backup-${cat.key}`}
+              checked={selected[cat.key]}
+              onCheckedChange={() => toggle(cat.key)}
+              className="mt-0.5"
+            />
+            <label htmlFor={`backup-${cat.key}`} className="cursor-pointer">
+              <p className="text-sm font-medium">{cat.label}</p>
+              <p className="text-xs text-muted-foreground">{cat.description}</p>
+            </label>
+          </div>
+        ))}
+      </div>
+      <Button onClick={handleExport} disabled={exporting} className="w-full sm:w-auto">
+        <Download className="w-4 h-4 mr-2" />
+        {exporting ? 'Preparing backup…' : 'Download Backup'}
+      </Button>
+    </CollapsibleCard>
+  );
+}
 
 function NetworkAccessCard() {
   const { data } = useQuery({
@@ -414,6 +487,9 @@ export default function Settings() {
               <p>• "Checkout" or "Pay" to start payment</p>
             </div>
           </CollapsibleCard>
+
+        {/* Backup */}
+        <BackupCard />
 
         {/* Network Access — KDS / Order Ready URLs */}
         <NetworkAccessCard />

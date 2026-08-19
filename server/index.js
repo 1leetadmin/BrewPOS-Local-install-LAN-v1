@@ -59,6 +59,74 @@ app.post('/api/debug-log', (req, res) => {
 // manually via Windows network settings.
 // ============================================================================
 
+const archiver = require('archiver');
+
+// ============================================================================
+// Backup export — bundles selected categories of local data into a
+// downloadable zip. Deliberately local-file-only: this app has zero
+// internet dependency by design, so this is the one backup method
+// guaranteed to work every time, anywhere, regardless of connectivity.
+// Excludes admin credentials, the license file, and Bluetooth pairing
+// data — none of that is meaningful to back up (security-sensitive or
+// tied to this specific PC).
+// ============================================================================
+
+const BACKUP_CATEGORIES = {
+  core: ['MenuItem', 'ModifierPreset', 'Discount', 'MenuPageLayout', 'Ingredient', 'StoreSettings'],
+  staff: ['StaffUser'],
+  transactions: ['Order', 'OrderItem', 'IngredientTransaction', 'TimeEntry', 'Event'],
+};
+
+app.get('/api/backup/export', (req, res) => {
+  try {
+    const selected = String(req.query.categories || '').split(',').filter(Boolean);
+    const entityNames = selected.flatMap((c) => BACKUP_CATEGORIES[c] || []);
+    if (entityNames.length === 0) {
+      return res.status(400).json({ error: 'No valid backup categories selected' });
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="BrewPOS-Backup-${dateStr}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('[backup] archive error:', err.message);
+      if (!res.headersSent) res.status(500).end();
+    });
+    archive.pipe(res);
+
+    archive.append(
+      JSON.stringify({
+        exported_at: new Date().toISOString(),
+        categories: selected,
+        entities: entityNames,
+      }, null, 2),
+      { name: 'backup-manifest.json' }
+    );
+
+    for (const name of entityNames) {
+      const records = LocalDB.list(name);
+      archive.append(JSON.stringify(records, null, 2), { name: `entities/${name}.json` });
+    }
+
+    // Core also bundles the actual uploaded photo files (menu items,
+    // staff, CDS media) — a data-only backup would otherwise restore to
+    // broken image links.
+    if (selected.includes('core')) {
+      const uploadsDir = path.join(DATA_ROOT, 'uploads', 'files');
+      if (fs.existsSync(uploadsDir)) {
+        archive.directory(uploadsDir, 'uploads');
+      }
+    }
+
+    archive.finalize();
+  } catch (err) {
+    console.error('[backup] export failed:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/network-info', (req, res) => {
   try {
     const interfaces = os.networkInterfaces();
