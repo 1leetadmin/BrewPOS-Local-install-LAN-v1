@@ -24,7 +24,17 @@ function entityFile(entityName) {
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    bootstrapFromMigrationSeed();
+    // A "vanilla" build (marker file present in the packaged app, added at
+    // build time — see server/VANILLA_BUILD and the CI workflow) skips
+    // seeding entirely, so a fresh install starts genuinely empty instead
+    // of pre-loaded with whichever café's data was baked into the build.
+    // Used for testing the real first-run experience a new customer gets.
+    const vanillaMarker = path.join(__dirname, 'VANILLA_BUILD');
+    if (!fs.existsSync(vanillaMarker)) {
+      bootstrapFromMigrationSeed();
+    } else {
+      console.log('[local-db] Vanilla build — skipping data seed, starting empty');
+    }
   }
 }
 

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy, Download } from 'lucide-react';
+import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,8 @@ const BACKUP_CATEGORY_INFO = [
 function BackupCard() {
   const [selected, setSelected] = useState({ core: true, staff: true, transactions: true });
   const [exporting, setExporting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const restoreInputRef = useRef(null);
 
   const toggle = (key) => setSelected((s) => ({ ...s, [key]: !s[key] }));
 
@@ -61,6 +63,36 @@ function BackupCard() {
     }
   };
 
+  const handleRestore = async (file) => {
+    const confirmed = window.confirm(
+      `Restore from "${file.name}"?\n\nThis replaces existing data for anything included in this backup. This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setRestoring(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const url = `http://${window.location.hostname}:3001/api/backup/import`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/zip' },
+        body: buffer,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Restore failed (${res.status})`);
+
+      const summary = data.restored.entities
+        .filter((e) => e.count > 0)
+        .map((e) => `${e.name} (${e.count})`)
+        .join(', ');
+      toast.success(`Restored: ${summary || 'no records'}${data.restored.uploads ? `, ${data.restored.uploads} photo(s)` : ''}`);
+    } catch (err) {
+      toast.error(`Restore failed: ${err.message}`);
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   return (
     <CollapsibleCard title="Backup" icon={Download} storageKey="backup">
       <p className="text-xs text-muted-foreground mb-3">
@@ -88,6 +120,37 @@ function BackupCard() {
         <Download className="w-4 h-4 mr-2" />
         {exporting ? 'Preparing backup…' : 'Download Backup'}
       </Button>
+
+      <Separator className="my-4" />
+
+      <div>
+        <p className="text-sm font-medium mb-1">Restore from Backup</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          For a fresh install after a hardware failure or reinstall — pick a backup zip and it
+          restores everything that was in it. Existing data for anything included in the backup
+          gets replaced.
+        </p>
+        <input
+          ref={restoreInputRef}
+          type="file"
+          accept=".zip"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleRestore(file);
+            e.target.value = '';
+          }}
+        />
+        <Button
+          variant="outline"
+          onClick={() => restoreInputRef.current?.click()}
+          disabled={restoring}
+          className="w-full sm:w-auto"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {restoring ? 'Restoring…' : 'Choose Backup File & Restore'}
+        </Button>
+      </div>
     </CollapsibleCard>
   );
 }

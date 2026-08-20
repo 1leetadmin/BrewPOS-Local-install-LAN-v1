@@ -1,10 +1,21 @@
 name: Build Windows Installer
 
-# Builds a double-click BrewPOS installer on every push to lan-local, using
-# a real Windows environment (GitHub's windows-latest runner) — this avoids
-# the reliability problems of cross-compiling native Windows modules (like
-# the USB printer driver) from a non-Windows machine. The finished installer
-# is attached to the workflow run as a downloadable artifact.
+# Builds BrewPOS on every push to lan-local, using a real Windows
+# environment (GitHub's windows-latest runner) — this avoids the
+# reliability problems of cross-compiling native Windows modules (like the
+# USB printer driver) from a non-Windows machine.
+#
+# Produces FOUR downloadable artifacts per run, each named with a build ID
+# (date + short commit SHA) so it's always clear exactly which build a
+# given download is:
+#   BrewPOS-Pilot-<buildId>-Setup.exe            (real installer, your data)
+#   BrewPOS-Pilot-<buildId>-Portable.exe          (portable, your data — for fast test iteration)
+#   BrewPOS-Pilot-<buildId>-Vanilla-Setup.exe     (real installer, BLANK — no seeded data)
+#   BrewPOS-Pilot-<buildId>-Vanilla-Portable.exe  (portable, BLANK — no seeded data)
+#
+# "Vanilla" builds skip the first-run data seed entirely (see
+# server/local-db.js's VANILLA_BUILD marker check) — use these to test
+# exactly what a brand-new customer's first launch looks like.
 on:
   push:
     branches: [lan-local]
@@ -22,6 +33,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Compute build ID
+        id: buildid
+        shell: bash
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHA=$(git rev-parse --short HEAD)
+          echo "value=${DATE}-${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Install app dependencies
         run: npm install
@@ -53,14 +72,44 @@ jobs:
         working-directory: server
         run: npm install
 
-      - name: Build the Windows installer
-        id: build
+      - name: Set build-ID artifact names (seeded variant)
         shell: pwsh
         run: |
-          npm run electron:build -- --publish never 2>&1 | Tee-Object -FilePath build-log.txt
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.build.nsis.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup.\${ext}';
+            p.build.portable.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable.\${ext}';
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+
+      - name: Build seeded variant (your data)
+        id: build_seeded
+        shell: pwsh
+        run: |
+          npm run electron:build -- --publish never 2>&1 | Tee-Object -FilePath build-log-seeded.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Publish log for debugging (always)
+      - name: Switch to vanilla (blank, no seeded data)
+        shell: pwsh
+        run: |
+          New-Item -Path "server/VANILLA_BUILD" -ItemType File -Force | Out-Null
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.build.nsis.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup.\${ext}';
+            p.build.portable.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable.\${ext}';
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+
+      - name: Build vanilla variant (blank)
+        id: build_vanilla
+        shell: pwsh
+        run: |
+          npm run electron:build -- --publish never 2>&1 | Tee-Object -FilePath build-log-vanilla.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish logs for debugging (always)
         if: always()
         shell: bash
         run: |
@@ -69,22 +118,38 @@ jobs:
           git fetch origin ci-logs 2>/dev/null || true
           git checkout --orphan ci-logs-tmp
           git rm -rf . > /dev/null 2>&1 || true
-          cp build-log.txt build-log.txt.tmp 2>/dev/null || echo "no log" > build-log.txt.tmp
-          mv build-log.txt.tmp build-log.txt
-          git add build-log.txt
+          cp build-log-seeded.txt build-log-seeded.txt.tmp 2>/dev/null || echo "no log" > build-log-seeded.txt.tmp
+          mv build-log-seeded.txt.tmp build-log-seeded.txt
+          cp build-log-vanilla.txt build-log-vanilla.txt.tmp 2>/dev/null || echo "no log" > build-log-vanilla.txt.tmp
+          mv build-log-vanilla.txt.tmp build-log-vanilla.txt
+          git add build-log-seeded.txt build-log-vanilla.txt
           git commit -m "CI log: run ${{ github.run_id }}"
           git push origin ci-logs-tmp:ci-logs --force
 
-      - name: Upload installer
+      - name: Upload seeded installer
         uses: actions/upload-artifact@v4
         with:
-          name: BrewPOS-Pilot-Installer
-          path: release/*Setup*.exe
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup.exe
           if-no-files-found: error
 
-      - name: Upload portable (for quick testing — no install/uninstall needed)
+      - name: Upload seeded portable
         uses: actions/upload-artifact@v4
         with:
-          name: BrewPOS-Pilot-Portable
-          path: release/*Portable*.exe
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable.exe
+          if-no-files-found: error
+
+      - name: Upload vanilla installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload vanilla portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable.exe
           if-no-files-found: error

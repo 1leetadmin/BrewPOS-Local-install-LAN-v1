@@ -127,6 +127,53 @@ app.get('/api/backup/export', (req, res) => {
   }
 });
 
+// Restore from a backup zip (see /api/backup/export above) — for setting
+// a fresh install back to a known state after a hardware failure/
+// reinstall. Replaces whichever entity files are present in the zip
+// wholesale (this is a disaster-recovery restore, not a merge — a fresh
+// install has nothing to merge with anyway) and restores any bundled
+// uploaded photos. Entities not present in the backup (e.g. importing a
+// staff-only backup) are left untouched.
+app.post('/api/backup/import', express.raw({ type: 'application/zip', limit: '200mb' }), (req, res) => {
+  try {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(req.body);
+    const entries = zip.getEntries();
+
+    const restored = { entities: [], uploads: 0 };
+
+    for (const entry of entries) {
+      if (entry.entryName.startsWith('entities/') && entry.entryName.endsWith('.json')) {
+        const entityName = entry.entryName.slice('entities/'.length, -'.json'.length);
+        try {
+          const records = JSON.parse(entry.getData().toString('utf8'));
+          if (Array.isArray(records)) {
+            LocalDB.seed(entityName, records);
+            restored.entities.push({ name: entityName, count: records.length });
+          }
+        } catch (parseErr) {
+          console.warn(`[backup] Skipping ${entry.entryName}: ${parseErr.message}`);
+        }
+      } else if (entry.entryName.startsWith('uploads/') && !entry.isDirectory) {
+        const filename = entry.entryName.slice('uploads/'.length);
+        const destDir = path.join(DATA_ROOT, 'uploads', 'files');
+        fs.mkdirSync(destDir, { recursive: true });
+        fs.writeFileSync(path.join(destDir, filename), entry.getData());
+        restored.uploads++;
+      }
+    }
+
+    if (restored.entities.length === 0 && restored.uploads === 0) {
+      return res.status(400).json({ error: 'No recognizable backup data found in this file — is it a BrewPOS backup zip?' });
+    }
+
+    res.json({ success: true, restored });
+  } catch (err) {
+    console.error('[backup] import failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/network-info', (req, res) => {
   try {
     const interfaces = os.networkInterfaces();
