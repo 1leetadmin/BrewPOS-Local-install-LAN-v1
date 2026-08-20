@@ -85,7 +85,16 @@ function BackupCard() {
         .filter((e) => e.count > 0)
         .map((e) => `${e.name} (${e.count})`)
         .join(', ');
-      toast.success(`Restored: ${summary || 'no records'}${data.restored.uploads ? `, ${data.restored.uploads} photo(s)` : ''}`);
+      toast.success(`Restored: ${summary || 'no records'}${data.restored.uploads ? `, ${data.restored.uploads} photo(s)` : ''} — reloading…`);
+      // Restore replaces data on disk directly (a raw fetch, not a
+      // react-query mutation). A query cache invalidation alone isn't
+      // enough here: this page's printer/settings form only ever syncs
+      // from the query ONCE on mount (by design, so a live poll doesn't
+      // wipe out in-progress edits) — after a restore that guard would
+      // block the new data from ever reaching the form. A full reload
+      // is the simplest way to guarantee every page reflects the
+      // restored data, not just this one's query cache.
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       toast.error(`Restore failed: ${err.message}`);
     } finally {
