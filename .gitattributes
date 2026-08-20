@@ -66,3 +66,4 @@ src/components/cds/SlideEditor.jsx        merge=ours
 src/components/cds/SlideshowSection.jsx   merge=ours
 src/lib/cdsDefaults.js                    merge=ours
 src/pages/CdsSettings.jsx                 merge=ours
+src/components/dashboard/AnalyticsFilters.jsx  merge=ours

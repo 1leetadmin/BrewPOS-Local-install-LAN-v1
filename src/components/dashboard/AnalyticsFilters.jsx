@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
-import { Search, X } from 'lucide-react';
+import { Search, X, CalendarDays } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 
 const STATUSES = [
@@ -17,6 +20,7 @@ const PRESETS = [
   { key: '7d', label: '7d' },
   { key: '30d', label: '30d' },
   { key: 'all', label: 'All' },
+  { key: 'event', label: 'Event' },
   { key: 'custom', label: 'Custom' },
 ];
 
@@ -45,15 +49,37 @@ function toggle(set, value) {
 export default function AnalyticsFilters({ allCategories, allItems, filters, onFiltersChange }) {
   const [itemSearch, setItemSearch] = useState('');
 
+  const { data: events = [] } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => base44.entities.Event.list('-start_date'),
+  });
+
   const set = (partial) => onFiltersChange({ ...filters, ...partial });
 
   const applyPreset = (preset) => {
-    if (preset === 'all') return set({ datePreset: 'all', dateFrom: null, dateTo: null });
-    if (preset === 'custom') return set({ datePreset: 'custom' });
+    if (preset === 'all') return set({ datePreset: 'all', dateFrom: null, dateTo: null, eventId: null });
+    if (preset === 'custom') return set({ datePreset: 'custom', eventId: null });
+    if (preset === 'event') return set({ datePreset: 'event', dateFrom: null, dateTo: null, eventId: null });
     const now = new Date();
-    if (preset === 'today') return set({ datePreset: 'today', dateFrom: startOfDay(now).getTime(), dateTo: endOfDay(now).getTime() });
+    if (preset === 'today') return set({ datePreset: 'today', dateFrom: startOfDay(now).getTime(), dateTo: endOfDay(now).getTime(), eventId: null });
     const days = preset === '7d' ? 6 : 29;
-    return set({ datePreset: preset, dateFrom: startOfDay(subDays(now, days)).getTime(), dateTo: endOfDay(now).getTime() });
+    return set({ datePreset: preset, dateFrom: startOfDay(subDays(now, days)).getTime(), dateTo: endOfDay(now).getTime(), eventId: null });
+  };
+
+  // Orders don't carry an event_id — Event only has start/end dates, so
+  // "view by event" just becomes a shortcut that sets the date range to
+  // match that event's dates, same underlying filter as Custom. No schema
+  // change needed, and it stays correct even for orders that existed
+  // before this feature did.
+  const applyEvent = (eventId) => {
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return;
+    set({
+      datePreset: 'event',
+      eventId: ev.id,
+      dateFrom: new Date(ev.start_date).getTime(),
+      dateTo: new Date(ev.end_date).getTime(),
+    });
   };
 
   const onCustomDate = (which, value) => {
@@ -104,6 +130,29 @@ export default function AnalyticsFilters({ allCategories, allItems, filters, onF
               <Input type="date" value={dateInputValue(filters.dateFrom)} onChange={e => onCustomDate('from', e.target.value)} className="h-8 w-[150px] text-xs" />
               <span className="text-xs text-muted-foreground">→</span>
               <Input type="date" value={dateInputValue(filters.dateTo)} onChange={e => onCustomDate('to', e.target.value)} className="h-8 w-[150px] text-xs" />
+            </div>
+          )}
+          {filters.datePreset === 'event' && (
+            <div className="flex items-center gap-1.5 ml-1">
+              <Select value={filters.eventId || ''} onValueChange={applyEvent}>
+                <SelectTrigger className="h-8 w-[220px] text-xs">
+                  <SelectValue placeholder={events.length === 0 ? 'No events yet' : 'Choose an event…'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {events.map(ev => (
+                    <SelectItem key={ev.id} value={ev.id}>
+                      {ev.name} — {format(new Date(ev.start_date), 'MMM d')}
+                      {ev.end_date && ev.end_date !== ev.start_date ? `–${format(new Date(ev.end_date), 'MMM d')}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {filters.eventId && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CalendarDays className="w-3 h-3" />
+                  {dateInputValue(filters.dateFrom)} → {dateInputValue(filters.dateTo)}
+                </span>
+              )}
             </div>
           )}
         </div>
