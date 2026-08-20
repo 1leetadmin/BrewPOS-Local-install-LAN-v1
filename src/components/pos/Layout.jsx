@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import POSSidebar from './POSSidebar';
@@ -64,7 +65,9 @@ export default function Layout() {
       <div className="flex flex-1 overflow-hidden">
         {!chromeHidden && <POSSidebar />}
         <main className="flex-1 overflow-hidden relative">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
           {chromeHidden && (
             <button
               onClick={toggleFullscreen}
