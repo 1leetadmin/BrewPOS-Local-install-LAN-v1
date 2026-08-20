@@ -248,7 +248,13 @@ import { normalizeTheme, buildThemeFromPreset } from '@/lib/themePresets';
 
 const FONT_FAMILIES = ['Arial', 'Arial Black', 'Courier New', 'Georgia', 'Impact', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'];
 
-const MENU_CATEGORIES = ['coffee', 'tea', 'smoothies', 'juices', 'sodas', 'water', 'alcohol', 'food', 'snacks', 'desserts', 'other'];
+// The full set of possible categories. Which ones actually show up in
+// Printer Routing / Category Modifier Order (and, correspondingly, the
+// category picker when creating a menu item) is controlled by
+// settings.enabled_categories — defaults to all of them if unset, so
+// nothing changes for an existing install until someone actively hides
+// categories they don't use. Same list MenuManagement.jsx draws from.
+export const ALL_MENU_CATEGORIES = ['coffee', 'tea', 'smoothies', 'juices', 'sodas', 'water', 'alcohol', 'food', 'snacks', 'desserts', 'other'];
 
 export default function Settings() {
   const [form, setForm] = useState(null);
@@ -336,6 +342,20 @@ export default function Settings() {
   });
 
   if (!form) return null;
+
+  // Defaults to every category if the setting has never been touched, so
+  // this is fully backward-compatible — nothing changes until someone
+  // actively unchecks a category they don't use.
+  const activeCategories = form.enabled_categories && form.enabled_categories.length > 0
+    ? ALL_MENU_CATEGORIES.filter(c => form.enabled_categories.includes(c))
+    : ALL_MENU_CATEGORIES;
+  const toggleCategory = (cat) => {
+    const current = form.enabled_categories && form.enabled_categories.length > 0
+      ? form.enabled_categories
+      : [...ALL_MENU_CATEGORIES];
+    const next = current.includes(cat) ? current.filter(c => c !== cat) : [...current, cat];
+    update('enabled_categories', next);
+  };
 
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
   const updateReceiptPrinter = (key, value) =>
@@ -488,6 +508,37 @@ export default function Settings() {
         {/* Printer Routing */}
         <CollapsibleCard title="Printer Routing" icon={Printer} storageKey="routing">
             <div className="space-y-2">
+              <Label className="text-sm font-semibold">Active Categories</Label>
+              <p className="text-xs text-muted-foreground">
+                Uncheck any categories you don't use — hides them from the lists below (and from
+                the category picker when creating a menu item), so you're not scrolling past
+                options that don't apply to your menu.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_MENU_CATEGORIES.map(cat => {
+                  const isActive = activeCategories.includes(cat);
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => toggleCategory(cat)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-xs font-medium capitalize border transition-colors',
+                        isActive
+                          ? 'bg-primary/15 text-primary border-primary/30'
+                          : 'bg-muted text-muted-foreground border-transparent line-through'
+                      )}
+                    >
+                      {cat.replace(/_/g, ' ')}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
               <Label>Default / Catch-all Printer</Label>
               <p className="text-xs text-muted-foreground">Used when an item has no item- or category-level assignment, so nothing is left unprinted.</p>
               <Select
@@ -514,7 +565,7 @@ export default function Settings() {
                 <p className="text-xs text-muted-foreground mt-0.5">Assign each category to one or more printers. Items inherit this unless overridden per-item.</p>
               </div>
               <div className="space-y-2.5">
-                {MENU_CATEGORIES.map(cat => {
+                {activeCategories.map(cat => {
                   const selected = (form.category_printers || {})[cat] || [];
                   return (
                     <div key={cat} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
@@ -541,7 +592,7 @@ export default function Settings() {
         <CollapsibleCard title="Category Modifier Order" icon={Sliders} storageKey="modifier-order">
             <p className="text-xs text-muted-foreground">Default display order of modifier groups for each category. Individual items inherit this unless they have their own order saved.</p>
             <div className="space-y-3">
-              {MENU_CATEGORIES.map(cat => {
+              {activeCategories.map(cat => {
                 const list = (form.category_modifier_order || {})[cat] || [];
                 const availableToAdd = modifierPresets
                   .map(p => p.name)
@@ -599,7 +650,7 @@ export default function Settings() {
 
         {/* Receipt Printer */}
         <CollapsibleCard title="Receipt Printer" icon={Receipt} storageKey="receipt">
-            <ReceiptPrinterSettings settings={form} onChange={updateReceiptPrinter} />
+            <ReceiptPrinterSettings settings={form} onChange={updateReceiptPrinter} onUpdateSettings={update} />
           </CollapsibleCard>
 
         {/* Voice */}

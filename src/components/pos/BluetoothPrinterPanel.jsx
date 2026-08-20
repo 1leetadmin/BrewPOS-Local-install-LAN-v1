@@ -13,6 +13,7 @@ import { printerService } from '@/lib/bluetoothPrinter';
 import { buildTestReceipt } from '@/lib/receiptEscpos';
 import { normalizePrinter, DEFAULT_PRINTER, DEFAULT_LABEL_FIELDS } from '@/components/pos/LabelPrinterSettings';
 import LabelPrinterSettings from '@/components/pos/LabelPrinterSettings';
+import ReceiptPrinterSettings from '@/components/pos/ReceiptPrinterSettings';
 import { getPrinterStatus, printLabelJobs } from '@/lib/localPrinter';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -172,6 +173,23 @@ export default function BluetoothPrinterPanel() {
   const saveLabelPrinters = async (updatedPrinters) => {
     if (!settings?.id) return;
     await base44.entities.StoreSettings.update(settings.id, { label_printers: updatedPrinters });
+    queryClient.invalidateQueries({ queryKey: ['storeSettings'] });
+  };
+
+  // Same pattern for the receipt printer — mirrors Settings.jsx's own
+  // updateReceiptPrinter (nests under receipt_printer) and update
+  // (top-level fields like qr_codes) so behavior is identical regardless
+  // of which screen you're editing from.
+  const [editReceiptSettingsOpen, setEditReceiptSettingsOpen] = useState(false);
+  const saveReceiptPrinterField = async (key, value) => {
+    if (!settings?.id) return;
+    const updated = { ...(settings.receipt_printer || {}), [key]: value };
+    await base44.entities.StoreSettings.update(settings.id, { receipt_printer: updated });
+    queryClient.invalidateQueries({ queryKey: ['storeSettings'] });
+  };
+  const saveTopLevelSetting = async (key, value) => {
+    if (!settings?.id) return;
+    await base44.entities.StoreSettings.update(settings.id, { [key]: value });
     queryClient.invalidateQueries({ queryKey: ['storeSettings'] });
   };
 
@@ -602,6 +620,14 @@ export default function BluetoothPrinterPanel() {
           >
             <Settings2 className="w-3.5 h-3.5" /> Edit label printer settings
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 w-full"
+            onClick={() => setEditReceiptSettingsOpen(true)}
+          >
+            <Settings2 className="w-3.5 h-3.5" /> Edit receipt printer settings
+          </Button>
         </div>
       </PopoverContent>
     </Popover>
@@ -616,6 +642,21 @@ export default function BluetoothPrinterPanel() {
           onChange={saveLabelPrinters}
           settings={settings}
         />
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={editReceiptSettingsOpen} onOpenChange={setEditReceiptSettingsOpen}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Receipt Printer Settings</DialogTitle>
+        </DialogHeader>
+        {settings && (
+          <ReceiptPrinterSettings
+            settings={settings}
+            onChange={saveReceiptPrinterField}
+            onUpdateSettings={saveTopLevelSetting}
+          />
+        )}
       </DialogContent>
     </Dialog>
     </>

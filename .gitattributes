@@ -58,3 +58,10 @@ src/components/pos/POSSidebar.jsx         merge=ours
 src/components/settings/CollapsibleCard.jsx  merge=ours
 vite.config.js                            merge=ours
 src/components/pos/LabelPrinterSettings.jsx  merge=ours
+
+# --- Follow-up polish: receipt printer popup, active categories, CDS duration presets (added 2026-08-20) ---
+src/components/pos/ReceiptPrinterSettings.jsx  merge=ours
+src/pages/MenuManagement.jsx              merge=ours
+src/components/cds/SlideEditor.jsx        merge=ours
+src/components/cds/SlideshowSection.jsx   merge=ours
+src/lib/cdsDefaults.js                    merge=ours

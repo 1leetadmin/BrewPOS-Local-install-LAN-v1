@@ -8,8 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SLIDE_TYPES, TRANSITION_STYLES } from '@/lib/cdsDefaults';
+import { SLIDE_TYPES, TRANSITION_STYLES, DURATION_PRESETS } from '@/lib/cdsDefaults';
 import { uploadCdsMedia } from '@/lib/cdsMedia';
+import { cn } from '@/lib/utils';
 
 export default function SlideEditor({ slide, onChange, onClose, onSave }) {
   const fileRef = useRef(null);
@@ -250,7 +251,39 @@ export default function SlideEditor({ slide, onChange, onClose, onSave }) {
           {/* Timing overrides */}
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
             <div className="space-y-2">
-              <Label>Duration (sec)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Duration (sec)</Label>
+                {slide.duration_ms && (
+                  <button
+                    type="button"
+                    onClick={() => update('duration_ms', null)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Use default
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1">
+                {DURATION_PRESETS.map(p => {
+                  const currentSeconds = slide.duration_ms ? slide.duration_ms / 1000 : null;
+                  const isActive = currentSeconds === p.seconds;
+                  return (
+                    <button
+                      key={p.seconds}
+                      type="button"
+                      onClick={() => update('duration_ms', p.seconds * 1000)}
+                      className={cn(
+                        'flex-1 px-1.5 py-1 rounded text-[11px] font-medium border transition-colors',
+                        isActive
+                          ? 'bg-primary/15 text-primary border-primary/30'
+                          : 'bg-muted text-muted-foreground border-transparent hover:text-foreground'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
               <Input
                 type="number"
                 min={1}

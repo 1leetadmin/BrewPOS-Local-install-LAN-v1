@@ -10,6 +10,7 @@ import ThumbnailGallery from '@/components/pos/ThumbnailGallery';
 import PrinterMultiSelect from '@/components/pos/PrinterMultiSelect';
 import BulkEditDialog from '@/components/pos/BulkEditDialog';
 import { DEFAULT_PRINTER } from '@/components/pos/LabelPrinterSettings';
+import { ALL_MENU_CATEGORIES } from '@/pages/Settings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -22,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const categories = ['coffee', 'tea', 'smoothies', 'juices', 'sodas', 'water', 'alcohol', 'food', 'snacks', 'desserts', 'other'];
+const categories = ALL_MENU_CATEGORIES;
 
 export default function MenuManagement() {
   const [search, setSearch] = useState('');
@@ -416,9 +417,20 @@ export default function MenuManagement() {
                 <Select value={editItem.category} onValueChange={val => setEditItem({ ...editItem, category: val })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {categories.map(c => (
-                      <SelectItem key={c} value={c} className="capitalize">{c.replace(/_/g, ' ')}</SelectItem>
-                    ))}
+                    {(() => {
+                      // Respects Settings > Printer Routing's "Active
+                      // Categories" toggle — but always includes this
+                      // item's CURRENT category even if it's since been
+                      // hidden, so editing an existing item never shows a
+                      // blank/broken selector for data that already exists.
+                      const enabled = settings?.enabled_categories && settings.enabled_categories.length > 0
+                        ? categories.filter(c => settings.enabled_categories.includes(c))
+                        : categories;
+                      const shown = enabled.includes(editItem.category) ? enabled : [...enabled, editItem.category];
+                      return shown.map(c => (
+                        <SelectItem key={c} value={c} className="capitalize">{c.replace(/_/g, ' ')}</SelectItem>
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>

@@ -4,7 +4,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TRANSITION_STYLES } from '@/lib/cdsDefaults';
+import { TRANSITION_STYLES, DURATION_PRESETS } from '@/lib/cdsDefaults';
+import { cn } from '@/lib/utils';
 
 export default function SlideshowSection({ config, onChange }) {
   const seconds = Math.round((config.default_slide_interval_ms || 5000) / 1000);
@@ -33,6 +34,23 @@ export default function SlideshowSection({ config, onChange }) {
             <Label>Default Slide Interval</Label>
             <span className="text-sm text-muted-foreground tabular-nums">{seconds}s</span>
           </div>
+          <div className="flex gap-1.5">
+            {DURATION_PRESETS.map(p => (
+              <button
+                key={p.seconds}
+                type="button"
+                onClick={() => onChange('default_slide_interval_ms', p.seconds * 1000)}
+                className={cn(
+                  'flex-1 px-2 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                  seconds === p.seconds
+                    ? 'bg-primary/15 text-primary border-primary/30'
+                    : 'bg-muted text-muted-foreground border-transparent hover:text-foreground'
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <Slider
             value={[seconds]}
             min={1}
@@ -40,6 +58,7 @@ export default function SlideshowSection({ config, onChange }) {
             step={1}
             onValueChange={([v]) => onChange('default_slide_interval_ms', v * 1000)}
           />
+          <p className="text-xs text-muted-foreground">Pick a preset above, or fine-tune with the slider — this is the fallback for any slide that doesn't have its own custom duration set.</p>
         </div>
 
         <div className="space-y-2">

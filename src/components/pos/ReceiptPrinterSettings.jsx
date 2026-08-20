@@ -10,13 +10,14 @@ import { Printer, CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react
 import { usePrinterStatus, getPrinterList } from '@/lib/localPrinter';
 import { printTestReceipt } from '@/components/pos/ReceiptPrint';
 import { cn } from '@/lib/utils';
+import QrCodeLibrary from '@/components/settings/QrCodeLibrary';
 
 // Receipt printer setup for the Settings page. The POS app talks to a small
 // local Node server (server/index.js, run on the POS machine) that sends raw
 // ESC/POS to the receipt printer — over USB (named OS printer, or raw libusb
 // auto-discovery) or LAN (raw socket to the printer's IP, no install needed).
 // No QZ Tray, no browser USB bridging.
-export default function ReceiptPrinterSettings({ settings, onChange }) {
+export default function ReceiptPrinterSettings({ settings, onChange, onUpdateSettings }) {
   const rp = settings.receipt_printer || {};
   const connectionType = rp.connection_type || 'usb';
   const status = usePrinterStatus(rp, 5000);
@@ -193,15 +194,24 @@ export default function ReceiptPrinterSettings({ settings, onChange }) {
                 ))}
               </SelectContent>
             </Select>
-            {(settings.qr_codes || []).length === 0 && (
-              <p className="text-xs text-amber-600">No QR codes in your library — add one in the Drink Label Printers section.</p>
-            )}
             <div className="space-y-1">
               <Label className="text-xs">Caption (printed below QR code)</Label>
               <Input
                 value={rp.qr_caption || ''}
                 onChange={e => onChange('qr_caption', e.target.value)}
                 placeholder="e.g. Scan for Google Reviews"
+              />
+            </div>
+            {/* Full add/edit/delete right here — previously this only let you
+                pick from an existing QR code and pointed you to a completely
+                different settings section just to create one. qr_codes is a
+                top-level settings field (not nested under receipt_printer,
+                unlike everything else this component edits), so this uses
+                onUpdateSettings rather than the regular onChange. */}
+            <div className="pt-2">
+              <QrCodeLibrary
+                qrCodes={settings.qr_codes || []}
+                onChange={(codes) => onUpdateSettings('qr_codes', codes)}
               />
             </div>
           </div>

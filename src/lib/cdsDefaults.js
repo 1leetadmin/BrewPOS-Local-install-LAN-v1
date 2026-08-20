@@ -1,3 +1,15 @@
+// Quick presets for slide duration — used both for the global default and
+// per-slide overrides, so someone can pick "Fast/Normal/Slow" without
+// needing to know what number of seconds that means, while the underlying
+// numeric field (slider or input) is always right there for a manual
+// override if the presets don't fit.
+export const DURATION_PRESETS = [
+  { label: 'Fast', seconds: 3 },
+  { label: 'Normal', seconds: 5 },
+  { label: 'Slow', seconds: 8 },
+  { label: 'Very slow', seconds: 12 },
+];
+
 export const DEFAULT_CDS_CONFIG = {
   slideshow_enabled: true,
   layout: 'fullscreen-idle-split-active',
