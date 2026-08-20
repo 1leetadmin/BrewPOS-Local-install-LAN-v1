@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { cn } from '@/lib/utils';
 import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy, Download, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
