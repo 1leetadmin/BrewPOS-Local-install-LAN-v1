@@ -50,3 +50,10 @@ src/pages/KdsBoard.jsx                    merge=ours
 src/pages/OrderReadyDisplay.jsx           merge=ours
 src/lib/spokenNumber.js                   merge=ours
 src/App.jsx                               merge=ours
+
+# --- UX audit fixes: top bar, sidebar grouping, settings polish (added 2026-08-20) ---
+src/components/pos/TopBar.jsx             merge=ours
+src/components/pos/Layout.jsx             merge=ours
+src/components/pos/POSSidebar.jsx         merge=ours
+src/components/settings/CollapsibleCard.jsx  merge=ours
+vite.config.js                            merge=ours

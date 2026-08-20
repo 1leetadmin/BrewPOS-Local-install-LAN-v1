@@ -23,6 +23,14 @@ const suffix = isVanilla ? '-Vanilla' : '';
 const pkgPath = 'package.json';
 const p = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
+// Base semver stays whatever it already is; the build ID is appended as
+// semver "build metadata" (the +... part) — valid syntax, doesn't affect
+// version precedence/comparisons, and __APP_VERSION__ (see vite.config.js)
+// picks this whole string up so the top bar always shows exactly which
+// build is running, not just a static "1.0.1" that never changes.
+const baseVersion = p.version.split('+')[0];
+p.version = `${baseVersion}+${buildId}${isVanilla ? '.vanilla' : ''}`;
+
 p.build.nsis.artifactName = `BrewPOS-Pilot-${buildId}${suffix}-Setup.\${ext}`;
 p.build.portable.artifactName = `BrewPOS-Pilot-${buildId}${suffix}-Portable.\${ext}`;
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy, Download, Upload } from 'lucide-react';
+import { Save, Store, Printer, Mic, Receipt, Tag, Palette, Sliders, Wifi, Tablet, Copy, Download, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -164,6 +164,8 @@ function BackupCard() {
   );
 }
 
+import { generateQrDataUrl } from '@/lib/qrCode';
+
 function NetworkAccessCard() {
   const { data } = useQuery({
     queryKey: ['networkInfo'],
@@ -174,11 +176,35 @@ function NetworkAccessCard() {
     refetchInterval: 10000,
   });
   const ip = data?.addresses?.[0];
+  const [qrCodes, setQrCodes] = useState({});
 
   const copy = (url) => {
     navigator.clipboard.writeText(url);
     toast.success('Copied');
   };
+
+  const links = ip ? [
+    { label: 'Staff Order Board (tablet)', path: '/kds' },
+    { label: 'Customer Ready Screen', path: '/order-ready' },
+    { label: 'Customer Display (menu slideshow)', path: '/display' },
+  ] : [];
+
+  useEffect(() => {
+    if (!ip) return;
+    let active = true;
+    (async () => {
+      const entries = await Promise.all(
+        links.map(async (l) => {
+          const url = `http://${ip}:3000${l.path}`;
+          const dataUrl = await generateQrDataUrl(url, 120);
+          return [l.path, dataUrl];
+        })
+      );
+      if (active) setQrCodes(Object.fromEntries(entries));
+    })();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ip]);
 
   if (!ip) {
     return (
@@ -190,24 +216,21 @@ function NetworkAccessCard() {
     );
   }
 
-  const links = [
-    { label: 'Staff Order Board (tablet)', path: '/kds' },
-    { label: 'Customer Ready Screen', path: '/order-ready' },
-    { label: 'Customer Display (menu slideshow)', path: '/display' },
-  ];
-
   return (
     <CollapsibleCard title="Network Access (KDS / Order Ready)" icon={Tablet} storageKey="network">
       <p className="text-xs text-muted-foreground mb-3">
-        Type these into the browser on your staff tablet or customer screen — they must be on
-        the same WiFi/network as this PC.
+        Scan the QR code on your staff tablet or customer screen's camera/browser — or type the
+        URL manually. Both must be on the same WiFi/network as this PC.
       </p>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {links.map((l) => {
           const url = `http://${ip}:3000${l.path}`;
           return (
-            <div key={l.path} className="flex items-center justify-between gap-2 p-2 bg-muted rounded-lg">
-              <div className="min-w-0">
+            <div key={l.path} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
+              {qrCodes[l.path] && (
+                <img src={qrCodes[l.path]} alt={`QR code for ${l.label}`} className="w-16 h-16 rounded bg-white p-1 shrink-0" />
+              )}
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium">{l.label}</p>
                 <p className="text-xs text-muted-foreground font-mono truncate">{url}</p>
               </div>
@@ -236,6 +259,11 @@ export default function Settings() {
     queryFn: () => base44.entities.StoreSettings.list(),
     staleTime: 0,
     gcTime: 0,
+  });
+
+  const { data: modifierPresets = [] } = useQuery({
+    queryKey: ['modifierPresets'],
+    queryFn: () => base44.entities.ModifierPreset.list(),
   });
 
   const settings = settingsList?.[0];
@@ -511,23 +539,58 @@ export default function Settings() {
 
         {/* Category Modifier Order */}
         <CollapsibleCard title="Category Modifier Order" icon={Sliders} storageKey="modifier-order">
-            <p className="text-xs text-muted-foreground">Default display order of modifier groups for each category. Individual items inherit this unless they have their own order saved. Enter group names separated by commas, in display order.</p>
-            <div className="space-y-2.5">
+            <p className="text-xs text-muted-foreground">Default display order of modifier groups for each category. Individual items inherit this unless they have their own order saved.</p>
+            <div className="space-y-3">
               {MENU_CATEGORIES.map(cat => {
                 const list = (form.category_modifier_order || {})[cat] || [];
+                const availableToAdd = modifierPresets
+                  .map(p => p.name)
+                  .filter(name => !list.includes(name));
+                const removeAt = (idx) => {
+                  const next = { ...(form.category_modifier_order || {}), [cat]: list.filter((_, i) => i !== idx) };
+                  update('category_modifier_order', next);
+                };
+                const addOne = (name) => {
+                  if (!name || list.includes(name)) return;
+                  const next = { ...(form.category_modifier_order || {}), [cat]: [...list, name] };
+                  update('category_modifier_order', next);
+                };
                 return (
-                  <div key={cat} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
-                    <span className="text-sm font-medium capitalize w-24 shrink-0">{cat.replace(/_/g, ' ')}</span>
-                    <Input
-                      className="flex-1"
-                      value={list.join(', ')}
-                      placeholder="e.g. Hot Size, Alt Milk, Sugar, Espresso shots, Flavour Shots"
-                      onChange={e => {
-                        const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                        const next = { ...(form.category_modifier_order || {}), [cat]: arr };
-                        update('category_modifier_order', next);
-                      }}
-                    />
+                  <div key={cat} className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-2">
+                    <span className="text-sm font-medium capitalize">{cat.replace(/_/g, ' ')}</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {list.length === 0 && (
+                        <span className="text-xs text-muted-foreground italic">No modifier groups set</span>
+                      )}
+                      {list.map((name, idx) => (
+                        <span
+                          key={`${name}-${idx}`}
+                          className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-primary/15 text-primary text-xs font-medium"
+                        >
+                          {name}
+                          <button
+                            type="button"
+                            onClick={() => removeAt(idx)}
+                            className="w-4 h-4 rounded-full hover:bg-primary/25 flex items-center justify-center"
+                            title={`Remove ${name}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    {availableToAdd.length > 0 && (
+                      <select
+                        className="text-xs bg-background border border-input rounded px-2 py-1 w-full sm:w-auto"
+                        value=""
+                        onChange={(e) => addOne(e.target.value)}
+                      >
+                        <option value="" disabled>+ Add modifier group…</option>
+                        {availableToAdd.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 );
               })}

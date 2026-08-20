@@ -8,19 +8,38 @@ import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 import { useStaffAuth, ROUTE_PERMISSIONS } from '@/lib/StaffAuthContext';
 
-const navItems = [
-  { path: '/', icon: LayoutGrid, label: 'POS Terminal' },
-  { path: '/orders', icon: ClipboardList, label: 'Orders' },
-  { path: '/menu', icon: Package, label: 'Menu Items' },
-  { path: '/modifier-presets', icon: Sliders, label: 'Modifier Presets' },
-  { path: '/discounts', icon: Tag, label: 'Discounts' },
-  { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
-  { path: '/ingredients', icon: Boxes, label: 'Ingredients' },
-  { path: '/ingredient-reports', icon: PieChart, label: 'Cost Reports' },
-  { path: '/settings', icon: Settings, label: 'Settings' },
-  { path: '/cds-settings', icon: Monitor, label: 'Customer Display' },
-  { path: '/staff', icon: ShieldCheck, label: 'Staff & Access' },
-  { path: '/timekeeping', icon: Clock, label: 'Timekeeping' },
+// Grouped by how often you'd actually reach for each one, not by feature
+// area — daily-use screens together, one-time/occasional setup together,
+// staff-related together. Previously a single flat list of 12 items with
+// no visual hierarchy at all.
+const navGroups = [
+  {
+    label: 'Operate',
+    items: [
+      { path: '/', icon: LayoutGrid, label: 'POS Terminal' },
+      { path: '/orders', icon: ClipboardList, label: 'Orders' },
+      { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+      { path: '/ingredient-reports', icon: PieChart, label: 'Cost Reports' },
+    ],
+  },
+  {
+    label: 'Setup',
+    items: [
+      { path: '/menu', icon: Package, label: 'Menu Items' },
+      { path: '/modifier-presets', icon: Sliders, label: 'Modifier Presets' },
+      { path: '/discounts', icon: Tag, label: 'Discounts' },
+      { path: '/ingredients', icon: Boxes, label: 'Ingredients' },
+      { path: '/cds-settings', icon: Monitor, label: 'Customer Display' },
+      { path: '/settings', icon: Settings, label: 'Settings' },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { path: '/staff', icon: ShieldCheck, label: 'Staff & Access' },
+      { path: '/timekeeping', icon: Clock, label: 'Timekeeping' },
+    ],
+  },
 ];
 
 function LockButton({ expanded }) {
@@ -42,14 +61,18 @@ export default function POSSidebar() {
   const [expanded, setExpanded] = useState(false);
   const { settings, currentStaff } = useStaffAuth();
 
-  const visibleNavItems = navItems.filter(({ path }) => {
+  const isItemVisible = ({ path }) => {
     if (!settings?.pin_lock_enabled) return true;
     if (!currentStaff || currentStaff.role === 'admin') return true;
     const perm = ROUTE_PERMISSIONS[path];
     if (!perm) return true;
     if (settings.admin_only_screens?.[perm]) return false;
     return currentStaff.permissions?.[perm] ?? false;
-  });
+  };
+
+  const visibleGroups = navGroups
+    .map((g) => ({ ...g, items: g.items.filter(isItemVisible) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <div className={cn(
@@ -74,25 +97,37 @@ export default function POSSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 flex flex-col gap-1 px-3">
-        {visibleNavItems.map(({ path, icon: Icon, label }) => {
-          const active = location.pathname === path;
-          return (
-            <Link
-              key={path}
-              to={path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap",
-                active 
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/20" 
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-              )}
-            >
-              <Icon className="w-5 h-5 shrink-0" />
-              {expanded && <span className="text-sm font-medium">{label}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 py-4 flex flex-col gap-1 px-3 overflow-y-auto">
+        {visibleGroups.map((group, gi) => (
+          <div key={group.label} className={gi > 0 ? 'mt-3' : ''}>
+            {expanded && (
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/35">
+                {group.label}
+              </div>
+            )}
+            {!expanded && gi > 0 && (
+              <div className="mx-3 mb-2 border-t border-sidebar-border" />
+            )}
+            {group.items.map(({ path, icon: Icon, label }) => {
+              const active = location.pathname === path;
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap",
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/20"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {expanded && <span className="text-sm font-medium">{label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Lock + Logout */}

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function CollapsibleCard({ title, icon: Icon, storageKey, defaultOpen = true, children }) {
+export default function CollapsibleCard({ title, icon: Icon, storageKey, defaultOpen = false, children }) {
   const [open, setOpen] = useState(() => {
     if (storageKey) {
       try {
