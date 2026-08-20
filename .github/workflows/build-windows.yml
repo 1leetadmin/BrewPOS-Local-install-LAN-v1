@@ -16,6 +16,11 @@ name: Build Windows Installer
 # "Vanilla" builds skip the first-run data seed entirely (see
 # server/local-db.js's VANILLA_BUILD marker check) — use these to test
 # exactly what a brand-new customer's first launch looks like.
+#
+# Each variant's artifacts are uploaded immediately after it's built,
+# rather than all at the end — this way, even if electron-builder clears
+# its output directory between the two build passes, the first variant's
+# files are already safely uploaded before that risk applies.
 on:
   push:
     branches: [lan-local]
@@ -72,16 +77,11 @@ jobs:
         working-directory: server
         run: npm install
 
+      # --- Seeded variant (your data) ---
+
       - name: Set build-ID artifact names (seeded variant)
-        shell: pwsh
-        run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            p.build.nsis.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup.\${ext}';
-            p.build.portable.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable.\${ext}';
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-          "
+        shell: bash
+        run: node scripts/set-artifact-names.cjs "${{ steps.buildid.outputs.value }}"
 
       - name: Build seeded variant (your data)
         id: build_seeded
@@ -90,17 +90,27 @@ jobs:
           npm run electron:build -- --publish never 2>&1 | Tee-Object -FilePath build-log-seeded.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Upload seeded installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload seeded portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable.exe
+          if-no-files-found: error
+
+      # --- Vanilla variant (blank, no seeded data) ---
+
       - name: Switch to vanilla (blank, no seeded data)
-        shell: pwsh
+        shell: bash
         run: |
-          New-Item -Path "server/VANILLA_BUILD" -ItemType File -Force | Out-Null
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            p.build.nsis.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup.\${ext}';
-            p.build.portable.artifactName = 'BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable.\${ext}';
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-          "
+          touch server/VANILLA_BUILD
+          node scripts/set-artifact-names.cjs "${{ steps.buildid.outputs.value }}" vanilla
 
       - name: Build vanilla variant (blank)
         id: build_vanilla
@@ -108,6 +118,20 @@ jobs:
         run: |
           npm run electron:build -- --publish never 2>&1 | Tee-Object -FilePath build-log-vanilla.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload vanilla installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload vanilla portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable
+          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable.exe
+          if-no-files-found: error
 
       - name: Publish logs for debugging (always)
         if: always()
@@ -125,31 +149,3 @@ jobs:
           git add build-log-seeded.txt build-log-vanilla.txt
           git commit -m "CI log: run ${{ github.run_id }}"
           git push origin ci-logs-tmp:ci-logs --force
-
-      - name: Upload seeded installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup
-          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Setup.exe
-          if-no-files-found: error
-
-      - name: Upload seeded portable
-        uses: actions/upload-artifact@v4
-        with:
-          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable
-          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Portable.exe
-          if-no-files-found: error
-
-      - name: Upload vanilla installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup
-          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Setup.exe
-          if-no-files-found: error
-
-      - name: Upload vanilla portable
-        uses: actions/upload-artifact@v4
-        with:
-          name: BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable
-          path: release/BrewPOS-Pilot-${{ steps.buildid.outputs.value }}-Vanilla-Portable.exe
-          if-no-files-found: error
