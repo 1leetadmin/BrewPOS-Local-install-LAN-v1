@@ -293,7 +293,7 @@ function LiveLabelPreview({ printer, qrDataUrl }) {
   );
 }
 
-function PrinterEditor({ printer, onChange, onDelete, canDelete, osPrinters, osPrintersLoading, onRefreshOsPrinters, qrDataUrl }) {
+function PrinterEditor({ printer, onChange, onDelete, canDelete, mode, osPrinters, osPrintersLoading, onRefreshOsPrinters, qrDataUrl }) {
   const [fieldsOpen, setFieldsOpen] = useState(true);
   const set = (key, value) => onChange({ ...printer, [key]: value });
 
@@ -365,7 +365,7 @@ function PrinterEditor({ printer, onChange, onDelete, canDelete, osPrinters, osP
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className={cn('grid grid-cols-2 gap-3', mode === 'advanced' && 'sm:grid-cols-4')}>
         <div className="space-y-1">
           <Label className="text-xs">Width (mm)</Label>
           <Input type="number" step="0.5" value={w}
@@ -376,41 +376,52 @@ function PrinterEditor({ printer, onChange, onDelete, canDelete, osPrinters, osP
           <Input type="number" step="0.5" value={h}
             onChange={e => set('height_mm', parseFloat(e.target.value) || 30)} className="h-8 text-sm" />
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Padding (mm)</Label>
-          <Input type="number" step="0.5" value={Number(printer.padding_mm) || 1.5}
-            onChange={e => set('padding_mm', parseFloat(e.target.value) || 1.5)} className="h-8 text-sm" />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Font Family</Label>
-          <Select value={printer.font_family || 'Arial'} onValueChange={v => set('font_family', v)}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {FONT_FAMILIES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Separator />
-
-      <div>
-        <button
-          onClick={() => setFieldsOpen(v => !v)}
-          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 hover:text-foreground w-full"
-        >
-          {fieldsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          Label Fields — reorder, set font size &amp; alignment
-        </button>
-        {fieldsOpen && (
-          <div className="space-y-1.5">
-            {printer.fields.map((field, idx) => (
-              <FieldRow key={field.key} field={field} idx={idx} total={printer.fields.length}
-                onChangeField={setField} onMove={moveField} />
-            ))}
-          </div>
+        {mode === 'advanced' && (
+          <>
+            <div className="space-y-1">
+              <Label className="text-xs">Padding (mm)</Label>
+              <Input type="number" step="0.5" value={Number(printer.padding_mm) || 1.5}
+                onChange={e => set('padding_mm', parseFloat(e.target.value) || 1.5)} className="h-8 text-sm" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Font Family</Label>
+              <Select value={printer.font_family || 'Arial'} onValueChange={v => set('font_family', v)}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FONT_FAMILIES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
         )}
       </div>
+
+      {mode === 'advanced' ? (
+        <>
+          <Separator />
+          <div>
+            <button
+              onClick={() => setFieldsOpen(v => !v)}
+              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 hover:text-foreground w-full"
+            >
+              {fieldsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              Label Fields — reorder, set font size &amp; alignment
+            </button>
+            {fieldsOpen && (
+              <div className="space-y-1.5">
+                {printer.fields.map((field, idx) => (
+                  <FieldRow key={field.key} field={field} idx={idx} total={printer.fields.length}
+                    onChangeField={setField} onMove={moveField} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Using default text layout and sizing. Switch to Advanced to customize individual fields (font size, alignment, order).
+        </p>
+      )}
 
       {/* Live preview — uses same render logic as print output */}
       <LiveLabelPreview printer={printer} qrDataUrl={qrDataUrl} />
@@ -422,6 +433,21 @@ export default function LabelPrinterSettings({ printers, onChange, settings }) {
   const [osPrinters, setOsPrinters] = useState([]);
   const [osPrintersLoading, setOsPrintersLoading] = useState(false);
   const qrDataUrl = useSettingsQrCode(settings);
+
+  // Basic hides padding/font-family and the entire per-field font-size/
+  // bold/alignment/reorder editor (7 fields x 4 properties = 28+ controls)
+  // behind an explicit toggle — most people just need "here's my printer's
+  // size, connect it" and a working default layout, not that much manual
+  // control. One global toggle (not per-printer) for one consistent mental
+  // model. Remembered across visits, same pattern as Settings' collapsed-
+  // card state.
+  const [mode, setMode] = useState(() => {
+    try { return localStorage.getItem('brewpos_printer_settings_mode') || 'basic'; } catch { return 'basic'; }
+  });
+  const setModeAndRemember = (next) => {
+    setMode(next);
+    try { localStorage.setItem('brewpos_printer_settings_mode', next); } catch { /* ignore */ }
+  };
 
   const refreshOsPrinters = useCallback(async () => {
     setOsPrintersLoading(true);
@@ -435,10 +461,27 @@ export default function LabelPrinterSettings({ printers, onChange, settings }) {
   // printers is the source of truth — already normalized by Settings.jsx on init
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
+        {['basic', 'advanced'].map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setModeAndRemember(m)}
+            className={cn(
+              'px-3 py-1 rounded-md text-xs font-medium capitalize transition-colors',
+              mode === m ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
       {printers.map((printer, idx) => (
         <PrinterEditor
           key={printer.id || idx}
           printer={printer}
+          mode={mode}
           osPrinters={osPrinters}
           osPrintersLoading={osPrintersLoading}
           onRefreshOsPrinters={refreshOsPrinters}

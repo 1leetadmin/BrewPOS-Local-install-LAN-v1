@@ -57,3 +57,4 @@ src/components/pos/Layout.jsx             merge=ours
 src/components/pos/POSSidebar.jsx         merge=ours
 src/components/settings/CollapsibleCard.jsx  merge=ours
 vite.config.js                            merge=ours
+src/components/pos/LabelPrinterSettings.jsx  merge=ours
