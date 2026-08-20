@@ -541,8 +541,62 @@ function ensureDefaultDiscounts() {
   }
 }
 
+// Retroactive fix for installs that were already running before these CDS
+// photos were localized (they'd have been created before the bundled
+// uploads/ folder in this build even existed, so the first-run bootstrap
+// never had a chance to seed them). Idempotent — the bundled files check
+// prevents re-copying, and the media_url checks only ever match the exact
+// old remote URLs once, so this is a no-op on every run after the first.
+function ensureLocalCdsMedia() {
+  const settingsList = LocalDB.list('StoreSettings');
+  if (settingsList.length === 0) return;
+  const s = settingsList[0];
+  const slides = s.cds_config?.slides;
+  if (!Array.isArray(slides)) return;
+
+  const port = process.env.PORT || 3001;
+  const uploadsBase = `http://localhost:${port}/uploads/files`;
+  let changed = false;
+
+  for (const slide of slides) {
+    const url = slide.media_url || '';
+    if (url.includes('4e755c0f4_IMG_9750')) {
+      slide.media_url = `${uploadsBase}/IMG_9750_opt.jpg`;
+      changed = true;
+    } else if (url.includes('99a30a81c_IMG_9758')) {
+      slide.media_url = `${uploadsBase}/IMG_9758_opt.jpg`;
+      changed = true;
+    } else if ((url.includes('PODatPOLYFEST') || url.includes('unsplash.com')) && slide.enabled !== false) {
+      // Video was too large to reliably transfer through the build
+      // pipeline, and this specific Unsplash URL is already dead (404)
+      // even in the original Base44-hosted version — disabled rather
+      // than left pointing at a broken/remote URL. Re-upload directly
+      // via CDS Settings > Media Library, which saves locally already.
+      slide.enabled = false;
+      changed = true;
+    }
+  }
+
+  if (!changed) return;
+
+  const seedUploadsDir = path.join(__dirname, 'migration-seed', 'uploads');
+  const destUploadsDir = path.join(DATA_ROOT, 'uploads', 'files');
+  if (fs.existsSync(seedUploadsDir)) {
+    fs.mkdirSync(destUploadsDir, { recursive: true });
+    for (const fname of ['IMG_9750_opt.jpg', 'IMG_9758_opt.jpg']) {
+      const src = path.join(seedUploadsDir, fname);
+      const dest = path.join(destUploadsDir, fname);
+      if (fs.existsSync(src) && !fs.existsSync(dest)) fs.copyFileSync(src, dest);
+    }
+  }
+
+  LocalDB.update('StoreSettings', s.id, { cds_config: s.cds_config });
+  console.log('[migration] Localized CDS photos, disabled dead/oversized slides');
+}
+
 if (!IS_VANILLA_BUILD) {
   ensureDefaultDiscounts();
+  ensureLocalCdsMedia();
   // Add any future startup migrations here — they'll automatically be
   // skipped for vanilla builds along with this one.
 } else {

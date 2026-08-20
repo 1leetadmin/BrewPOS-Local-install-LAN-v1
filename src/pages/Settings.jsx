@@ -688,6 +688,16 @@ export default function Settings() {
             onSave={() => saveMutation.mutateAsync(form)}
           />
           </CollapsibleCard>
+
+        {/* Bottom Save — mirrors the top one so a change made deep in a long
+            scroll (e.g. the last card, SmartConnect) doesn't require
+            scrolling all the way back up just to save it. */}
+        <div className="flex justify-end pt-2 pb-4">
+          <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending} className="gap-2">
+            <Save className="w-4 h-4" />
+            {saveMutation.isPending ? 'Saving…' : 'Save Settings'}
+          </Button>
+        </div>
       </div>
     </ScrollArea>
   );

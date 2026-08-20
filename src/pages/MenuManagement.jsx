@@ -346,12 +346,12 @@ export default function MenuManagement() {
 
       {/* Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={closeDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] p-0 flex flex-col gap-0">
+          <DialogHeader className="p-6 pb-2 shrink-0">
             <DialogTitle>{editItem?.id ? 'Edit Item' : 'New Item'}</DialogTitle>
           </DialogHeader>
           {editItem && (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto px-6 pb-4">
               {/* Thumbnail upload */}
               <div className="space-y-2">
                 <Label>Thumbnail Image</Label>
@@ -531,12 +531,14 @@ export default function MenuManagement() {
                   </div>
                 );
               })()}
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-                <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
-                  {editItem.id ? 'Update' : 'Create'}
-                </Button>
-              </div>
+            </div>
+          )}
+          {editItem && (
+            <div className="flex gap-2 justify-end p-6 pt-3 border-t border-border shrink-0">
+              <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+              <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
+                {editItem.id ? 'Update' : 'Create'}
+              </Button>
             </div>
           )}
         </DialogContent>

@@ -104,6 +104,28 @@ export default function CdsSettings() {
         <OrderPanelSection config={config} onChange={update} />
         <SlidesManager config={config} onChange={update} onSave={saveConfigQuietly} />
         <MediaLibrary config={config} />
+
+        {/* Bottom Save + Preview — mirrors the top pair. This page can get
+            long with several slides, so a change made near the bottom
+            (e.g. Media Library) previously meant scrolling all the way
+            back up just to save or preview it. */}
+        <div className="flex justify-end gap-2 pt-2 pb-4">
+          <Button
+            variant="outline"
+            onClick={() => window.open('/display', '_blank')}
+            className="gap-2"
+          >
+            <ExternalLink className="w-4 h-4" /> Preview
+          </Button>
+          <Button
+            onClick={() => saveMutation.mutate(config)}
+            disabled={saveMutation.isPending}
+            className="gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {saveMutation.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
       </div>
     </ScrollArea>
   );
