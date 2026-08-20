@@ -12,11 +12,13 @@ import {
 import { printerService } from '@/lib/bluetoothPrinter';
 import { buildTestReceipt } from '@/lib/receiptEscpos';
 import { normalizePrinter, DEFAULT_PRINTER, DEFAULT_LABEL_FIELDS } from '@/components/pos/LabelPrinterSettings';
+import LabelPrinterSettings from '@/components/pos/LabelPrinterSettings';
 import { getPrinterStatus, printLabelJobs } from '@/lib/localPrinter';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Usb } from 'lucide-react';
+import { Usb, Settings2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function BluetoothPrinterPanel() {
   const [statuses, setStatuses] = useState({}); // printerId -> status string
@@ -160,6 +162,18 @@ export default function BluetoothPrinterPanel() {
   const printers = (settings?.label_printers && settings.label_printers.length > 0)
     ? settings.label_printers
     : [{ ...DEFAULT_PRINTER }];
+
+  // Full label printer configuration (dimensions, fields, font sizes) —
+  // previously only reachable via Settings, requiring navigating away from
+  // the POS screen entirely. Same save pattern already used elsewhere in
+  // this file (see handleAddPrinter below) so changes made here and on the
+  // Settings page both write to the same place, no separate state to sync.
+  const [editSettingsOpen, setEditSettingsOpen] = useState(false);
+  const saveLabelPrinters = async (updatedPrinters) => {
+    if (!settings?.id) return;
+    await base44.entities.StoreSettings.update(settings.id, { label_printers: updatedPrinters });
+    queryClient.invalidateQueries({ queryKey: ['storeSettings'] });
+  };
 
   useEffect(() => {
     setSupported(printerService.isSupported());
@@ -315,6 +329,7 @@ export default function BluetoothPrinterPanel() {
   };
 
   return (
+    <>
     <Popover>
       <PopoverTrigger asChild>
         <Button
@@ -576,8 +591,33 @@ export default function BluetoothPrinterPanel() {
           <p className="text-[11px] text-muted-foreground">
             Each menu item routes to its assigned printer(s) when an order completes. Configure assignments in Menu & Settings.
           </p>
+
+          <Separator />
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 w-full"
+            onClick={() => setEditSettingsOpen(true)}
+          >
+            <Settings2 className="w-3.5 h-3.5" /> Edit label printer settings
+          </Button>
         </div>
       </PopoverContent>
     </Popover>
+
+    <Dialog open={editSettingsOpen} onOpenChange={setEditSettingsOpen}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Label Printer Settings</DialogTitle>
+        </DialogHeader>
+        <LabelPrinterSettings
+          printers={settings?.label_printers || []}
+          onChange={saveLabelPrinters}
+          settings={settings}
+        />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
