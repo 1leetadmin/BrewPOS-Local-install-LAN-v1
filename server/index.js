@@ -514,7 +514,16 @@ app.delete('/api/cds-media', (req, res) => {
 // machine, even across many restarts. This is how new default data (like a
 // new discount) reaches installs that were already running, since the
 // first-run migration-seed only applies to brand-new installs.
+//
+// The whole block is skipped on a vanilla build — these add real business
+// data, which has no place in a build meant to be a completely blank
+// canvas for testing the new-customer first-run experience. Computed once
+// here rather than checked inside each migration individually, so a future
+// migration added to this file can't accidentally skip the check the way
+// this one originally did.
 // ============================================================================
+
+const IS_VANILLA_BUILD = fs.existsSync(path.join(__dirname, 'VANILLA_BUILD'));
 
 function ensureDefaultDiscounts() {
   const discounts = LocalDB.list('Discount');
@@ -531,7 +540,14 @@ function ensureDefaultDiscounts() {
     console.log('[migration] Added default discount: $10 Off Voucher');
   }
 }
-ensureDefaultDiscounts();
+
+if (!IS_VANILLA_BUILD) {
+  ensureDefaultDiscounts();
+  // Add any future startup migrations here — they'll automatically be
+  // skipped for vanilla builds along with this one.
+} else {
+  console.log('[migration] Vanilla build — skipping all default-data migrations');
+}
 
 app.listen(PORT, () => {
   console.log(`Local print server listening on http://localhost:${PORT}`);
