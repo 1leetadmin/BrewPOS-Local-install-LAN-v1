@@ -67,3 +67,9 @@ src/components/cds/SlideshowSection.jsx   merge=ours
 src/lib/cdsDefaults.js                    merge=ours
 src/pages/CdsSettings.jsx                 merge=ours
 src/components/dashboard/AnalyticsFilters.jsx  merge=ours
+
+# --- Loyverse sales import (added 2026-08-20) ---
+src/lib/loyverseImport.js                 merge=ours
+src/components/dashboard/SalesImportUpload.jsx  merge=ours
+src/components/dashboard/AnalyticsCharts.jsx  merge=ours
+src/pages/Dashboard.jsx                   merge=ours

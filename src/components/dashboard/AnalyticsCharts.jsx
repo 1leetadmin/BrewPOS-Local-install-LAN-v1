@@ -21,12 +21,14 @@ function PrepTooltip({ active, payload, label }) {
   );
 }
 
-export default function AnalyticsCharts({ volumeData, prepData, granularity }) {
+export default function AnalyticsCharts({ volumeData, prepData, granularity, importMode = false }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-heading">Order Volume</CardTitle>
+          <CardTitle className="text-base font-heading">
+            {importMode ? 'Revenue by Hour' : 'Order Volume'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[280px]">
@@ -34,9 +36,9 @@ export default function AnalyticsCharts({ volumeData, prepData, granularity }) {
               <BarChart data={volumeData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" name="Items" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
+                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} allowDecimals={false} tickFormatter={importMode ? (v) => `$${v}` : undefined} />
+                <Tooltip contentStyle={tooltipStyle} formatter={importMode ? (v) => [`$${v.toFixed(2)}`, 'Revenue'] : undefined} />
+                <Bar dataKey="count" name={importMode ? 'Revenue' : 'Items'} fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -48,17 +50,25 @@ export default function AnalyticsCharts({ volumeData, prepData, granularity }) {
           <CardTitle className="text-base font-heading">Prep-Time Trend <span className="text-xs font-normal text-muted-foreground">(avg, printed only)</span></CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={prepData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickFormatter={(v) => `${v}s`} />
-                <Tooltip content={<PrepTooltip />} />
-                <Line type="monotone" dataKey="avgPrep" name="Avg prep" stroke="hsl(200,70%,50%)" strokeWidth={2} dot={false} connectNulls={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {importMode ? (
+            <div className="h-[280px] flex items-center justify-center text-center px-6">
+              <p className="text-sm text-muted-foreground">
+                Not available for imported data — Loyverse's exports don't include per-transaction prep/print timing.
+              </p>
+            </div>
+          ) : (
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={prepData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} interval="preserveStartEnd" />
+                  <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickFormatter={(v) => `${v}s`} />
+                  <Tooltip content={<PrepTooltip />} />
+                  <Line type="monotone" dataKey="avgPrep" name="Avg prep" stroke="hsl(200,70%,50%)" strokeWidth={2} dot={false} connectNulls={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

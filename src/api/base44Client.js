@@ -93,7 +93,7 @@ function entityClient(entityName) {
 const ENTITY_NAMES = [
   'StaffUser', 'MenuPageLayout', 'IngredientTransaction', 'ModifierPreset',
   'MenuItem', 'OrderItem', 'User', 'Discount', 'StoreSettings', 'TimeEntry',
-  'Event', 'Order', 'Ingredient', 'KdsTicket',
+  'Event', 'Order', 'Ingredient', 'KdsTicket', 'SalesImport',
 ];
 
 const entities = {};

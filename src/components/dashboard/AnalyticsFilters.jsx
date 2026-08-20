@@ -21,6 +21,7 @@ const PRESETS = [
   { key: '30d', label: '30d' },
   { key: 'all', label: 'All' },
   { key: 'event', label: 'Event' },
+  { key: 'import', label: 'Import' },
   { key: 'custom', label: 'Custom' },
 ];
 
@@ -46,24 +47,29 @@ function toggle(set, value) {
   return next;
 }
 
-export default function AnalyticsFilters({ allCategories, allItems, filters, onFiltersChange }) {
+export default function AnalyticsFilters({ allCategories, allItems, filters, onFiltersChange, onOpenImportUpload }) {
   const [itemSearch, setItemSearch] = useState('');
 
   const { data: events = [] } = useQuery({
     queryKey: ['events'],
     queryFn: () => base44.entities.Event.list('-start_date'),
   });
+  const { data: imports = [] } = useQuery({
+    queryKey: ['salesImports'],
+    queryFn: () => base44.entities.SalesImport.list('-created_date'),
+  });
 
   const set = (partial) => onFiltersChange({ ...filters, ...partial });
 
   const applyPreset = (preset) => {
-    if (preset === 'all') return set({ datePreset: 'all', dateFrom: null, dateTo: null, eventId: null });
-    if (preset === 'custom') return set({ datePreset: 'custom', eventId: null });
-    if (preset === 'event') return set({ datePreset: 'event', dateFrom: null, dateTo: null, eventId: null });
+    if (preset === 'all') return set({ datePreset: 'all', dateFrom: null, dateTo: null, eventId: null, importId: null });
+    if (preset === 'custom') return set({ datePreset: 'custom', eventId: null, importId: null });
+    if (preset === 'event') return set({ datePreset: 'event', dateFrom: null, dateTo: null, eventId: null, importId: null });
+    if (preset === 'import') return set({ datePreset: 'import', dateFrom: null, dateTo: null, eventId: null, importId: null });
     const now = new Date();
-    if (preset === 'today') return set({ datePreset: 'today', dateFrom: startOfDay(now).getTime(), dateTo: endOfDay(now).getTime(), eventId: null });
+    if (preset === 'today') return set({ datePreset: 'today', dateFrom: startOfDay(now).getTime(), dateTo: endOfDay(now).getTime(), eventId: null, importId: null });
     const days = preset === '7d' ? 6 : 29;
-    return set({ datePreset: preset, dateFrom: startOfDay(subDays(now, days)).getTime(), dateTo: endOfDay(now).getTime(), eventId: null });
+    return set({ datePreset: preset, dateFrom: startOfDay(subDays(now, days)).getTime(), dateTo: endOfDay(now).getTime(), eventId: null, importId: null });
   };
 
   // Orders don't carry an event_id — Event only has start/end dates, so
@@ -77,9 +83,14 @@ export default function AnalyticsFilters({ allCategories, allItems, filters, onF
     set({
       datePreset: 'event',
       eventId: ev.id,
+      importId: null,
       dateFrom: new Date(ev.start_date).getTime(),
       dateTo: new Date(ev.end_date).getTime(),
     });
+  };
+
+  const applyImport = (importId) => {
+    set({ datePreset: 'import', importId, eventId: null, dateFrom: null, dateTo: null });
   };
 
   const onCustomDate = (which, value) => {
@@ -152,6 +163,25 @@ export default function AnalyticsFilters({ allCategories, allItems, filters, onF
                   <CalendarDays className="w-3 h-3" />
                   {dateInputValue(filters.dateFrom)} → {dateInputValue(filters.dateTo)}
                 </span>
+              )}
+            </div>
+          )}
+          {filters.datePreset === 'import' && (
+            <div className="flex items-center gap-1.5 ml-1">
+              <Select value={filters.importId || ''} onValueChange={applyImport}>
+                <SelectTrigger className="h-8 w-[220px] text-xs">
+                  <SelectValue placeholder={imports.length === 0 ? 'No imports yet' : 'Choose an import…'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {imports.map(imp => (
+                    <SelectItem key={imp.id} value={imp.id}>{imp.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {onOpenImportUpload && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={onOpenImportUpload}>
+                  Upload new…
+                </Button>
               )}
             </div>
           )}
