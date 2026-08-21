@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { hashValue } from '@/lib/pinHash';
+import { validateDisplayName } from '@/lib/nameValidation';
 import { Shield, User } from 'lucide-react';
 
 const PERMISSION_LABELS = [
@@ -30,6 +31,7 @@ const DEFAULT_PERMS = {
 // Create / edit dialog for a StaffUser.
 export default function StaffUserForm({ open, onClose, onSave, user }) {
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [role, setRole] = useState('staff');
   const [pinLength, setPinLength] = useState(4);
   const [pin, setPin] = useState('');
@@ -40,6 +42,7 @@ export default function StaffUserForm({ open, onClose, onSave, user }) {
   useEffect(() => {
     if (open) {
       setName(user?.name || '');
+      setNameError('');
       setRole(user?.role || 'staff');
       setPinLength(user?.pin_length || 4);
       setPin('');
@@ -49,13 +52,17 @@ export default function StaffUserForm({ open, onClose, onSave, user }) {
   }, [open, user]);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    const validated = validateDisplayName(name);
+    if (!validated.valid) {
+      setNameError(validated.reason);
+      return;
+    }
     if (pin !== pinConfirm) return;
 
     setSaving(true);
     const pinHash = pin ? await hashValue(pin) : user?.pin_hash;
     await onSave({
-      name: name.trim(),
+      name: validated.name,
       role,
       pin_length: pinLength,
       pin_hash: pinHash,
@@ -81,7 +88,13 @@ export default function StaffUserForm({ open, onClose, onSave, user }) {
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Staff name" />
+            <Input
+              value={name}
+              onChange={e => { setName(e.target.value); setNameError(''); }}
+              placeholder="Staff name"
+              maxLength={40}
+            />
+            {nameError && <p className="text-xs text-destructive">{nameError}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -59,8 +59,15 @@ function escPos(commands) {
   return new Uint8Array(commands.flat(Infinity));
 }
 
+// Strips control characters (0x00-0x1F, 0x7F) before encoding to bytes.
+// Without this, a literal ESC byte (0x1B) embedded in ANY printed text —
+// a staff name, item name, comment, discount name, store name — would be
+// interpreted by the printer hardware as the start of a real ESC/POS
+// command sequence rather than printed as text. Same fix as the
+// server-side USB/LAN print path (server/printer.js).
 function textToBytes(str) {
-  return Array.from(new TextEncoder().encode(str));
+  const cleaned = String(str).replace(/[\x00-\x1F\x7F]/g, '');
+  return Array.from(new TextEncoder().encode(cleaned));
 }
 
 // ESC/POS QR code commands — generates a native QR code on the printer.

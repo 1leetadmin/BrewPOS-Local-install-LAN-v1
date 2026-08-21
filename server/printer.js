@@ -339,8 +339,19 @@ const ESC_B = 0x1B;
 const GS_B = 0x1D;
 const LF_B = 0x0A;
 
+// Strips control characters (0x00-0x1F, 0x7F) before encoding to bytes.
+// Without this, a literal ESC byte (0x1B) embedded in ANY printed text —
+// a staff name, item name, comment, discount name, store name — would be
+// interpreted by the printer hardware as the start of a real ESC/POS
+// command sequence rather than printed as text, since ESC/POS commands
+// are themselves just specific control-byte sequences. This is the single
+// choke point every printed string passes through, so fixing it here
+// protects every current and future text field at once, rather than
+// needing to remember to validate each one individually at every input
+// field across the app.
 function textToBytes(str) {
-  return Array.from(new TextEncoder().encode(str));
+  const cleaned = String(str).replace(/[\x00-\x1F\x7F]/g, '');
+  return Array.from(new TextEncoder().encode(cleaned));
 }
 
 // ESC/POS QR code commands — generates a native QR code on the printer.
