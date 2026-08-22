@@ -114,6 +114,17 @@ export default function Dashboard() {
         {importMode && (
           <div className="px-4 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
             Showing imported data: <strong>{activeImport.label}</strong> (Loyverse) — prep-time and label-print stats aren't tracked in this data.
+            {(activeImport.item_totals?.length > 0 || activeImport.category_totals?.length > 0 || activeImport.time_series?.length > 0) && (
+              <span className="block text-xs text-primary/70 mt-1">
+                This import has: {[
+                  activeImport.item_totals?.length > 0 && 'item breakdown',
+                  activeImport.category_totals?.length > 0 && 'category breakdown',
+                  activeImport.time_series?.length > 0 && `${activeImport.granularity || 'time'} revenue`,
+                  activeImport.modifier_totals?.length > 0 && 'modifier breakdown',
+                  activeImport.payment_totals?.length > 0 && 'payment breakdown',
+                ].filter(Boolean).join(', ')}. Upload the other Loyverse export types for this same event to fill in the rest.
+              </span>
+            )}
           </div>
         )}
 
@@ -159,8 +170,22 @@ export default function Dashboard() {
               )}
             </div>
 
-            <AnalyticsCharts volumeData={chartData} prepData={chartData} granularity={granularity} importMode={importMode} />
-            <AnalyticsTable rows={tableRows} rowDimension={rowDimension} />
+            <AnalyticsCharts
+              volumeData={chartData}
+              prepData={chartData}
+              granularity={granularity}
+              importMode={importMode}
+              volumeEmptyMessage={importMode ? 'No Sales Summary data in this import — upload that export to see revenue over time.' : undefined}
+            />
+            <AnalyticsTable
+              rows={tableRows}
+              rowDimension={rowDimension}
+              emptyMessage={
+                importMode
+                  ? `No ${rowDimension === 'category' ? 'Category Sales' : 'Item Sales'} data in this import — upload that export to see this breakdown.`
+                  : undefined
+              }
+            />
           </div>
         </div>
       </div>

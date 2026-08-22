@@ -21,7 +21,7 @@ function PrepTooltip({ active, payload, label }) {
   );
 }
 
-export default function AnalyticsCharts({ volumeData, prepData, granularity, importMode = false }) {
+export default function AnalyticsCharts({ volumeData, prepData, granularity, importMode = false, volumeEmptyMessage }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
@@ -31,17 +31,25 @@ export default function AnalyticsCharts({ volumeData, prepData, granularity, imp
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={volumeData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} allowDecimals={false} tickFormatter={importMode ? (v) => `$${v}` : undefined} />
-                <Tooltip contentStyle={tooltipStyle} formatter={importMode ? (v) => [`$${v.toFixed(2)}`, 'Revenue'] : undefined} />
-                <Bar dataKey="count" name={importMode ? 'Revenue' : 'Items'} fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {importMode && volumeData.length === 0 ? (
+            <div className="h-[280px] flex items-center justify-center text-center px-6">
+              <p className="text-sm text-muted-foreground">
+                {volumeEmptyMessage || 'No Sales Summary data in this import.'}
+              </p>
+            </div>
+          ) : (
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={volumeData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} interval="preserveStartEnd" />
+                  <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} allowDecimals={false} tickFormatter={importMode ? (v) => `$${v}` : undefined} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={importMode ? (v) => [`$${v.toFixed(2)}`, 'Revenue'] : undefined} />
+                  <Bar dataKey="count" name={importMode ? 'Revenue' : 'Items'} fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
 

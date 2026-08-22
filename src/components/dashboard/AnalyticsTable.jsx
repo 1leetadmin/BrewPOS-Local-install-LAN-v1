@@ -1,7 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { fmtTime } from '@/lib/analytics';
 
-export default function AnalyticsTable({ rows, rowDimension }) {
+export default function AnalyticsTable({ rows, rowDimension, emptyMessage }) {
   return (
     <Card>
       <CardHeader>
@@ -24,7 +24,7 @@ export default function AnalyticsTable({ rows, rowDimension }) {
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">No data for current filters</td></tr>
+                <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">{emptyMessage || 'No data for current filters'}</td></tr>
               ) : rows.map(r => (
                 <tr key={r.name} className="border-b border-border/60 last:border-0">
                   <td className="py-2 pr-4 font-medium">
