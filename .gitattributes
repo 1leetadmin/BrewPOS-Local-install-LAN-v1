@@ -75,6 +75,9 @@ src/components/dashboard/AnalyticsCharts.jsx  merge=ours
 src/pages/Dashboard.jsx                   merge=ours
 src/components/dashboard/AnalyticsTable.jsx  merge=ours
 
+# --- Loyverse-format native reporting + export (added 2026-08-21) ---
+src/lib/analytics.js                      merge=ours
+
 # --- Error boundary (added 2026-08-20) ---
 src/components/ErrorBoundary.jsx          merge=ours
 src/main.jsx                              merge=ours

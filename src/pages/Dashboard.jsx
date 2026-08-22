@@ -1,18 +1,20 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Package, DollarSign, Timer, CheckCircle2, Upload } from 'lucide-react';
+import { Package, DollarSign, Timer, CheckCircle2, Upload, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import AnalyticsFilters from '@/components/dashboard/AnalyticsFilters';
 import AnalyticsCharts from '@/components/dashboard/AnalyticsCharts';
 import AnalyticsTable from '@/components/dashboard/AnalyticsTable';
 import SalesImportUpload from '@/components/dashboard/SalesImportUpload';
+import { downloadLoyverseFormatCsvs } from '@/lib/loyverseImport';
 import {
   filterItems, computeTableMetrics, bucketByTime, prepTimeSeconds,
-  uniqueCategories, uniqueItemNames, fmtTime,
+  uniqueCategories, uniqueItemNames, fmtTime, computeLoyverseStyleReport,
 } from '@/lib/analytics';
 
 export default function Dashboard() {
@@ -24,6 +26,10 @@ export default function Dashboard() {
     queryKey: ['orderItems'],
     queryFn: () => base44.entities.OrderItem.list('-placed_at', 5000),
   });
+  const { data: menuItems = [] } = useQuery({
+    queryKey: ['menuItems'],
+    queryFn: () => base44.entities.MenuItem.list(),
+  });
   const { data: salesImports = [] } = useQuery({
     queryKey: ['salesImports'],
     queryFn: () => base44.entities.SalesImport.list('-created_date'),
@@ -32,6 +38,7 @@ export default function Dashboard() {
   const [rowDimension, setRowDimension] = useState('item');   // 'item' | 'category'
   const [granularity, setGranularity] = useState('hour');     // 'day' | 'hour' | 'minute'
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [financialView, setFinancialView] = useState(false); // native data shown with Loyverse-style cost/profit/margin columns
   const [filters, setFilters] = useState({
     statusSet: new Set(),
     categories: new Set(),
@@ -59,6 +66,19 @@ export default function Dashboard() {
 
   const activeImport = filters.importId ? salesImports.find(i => i.id === filters.importId) : null;
   const importMode = Boolean(activeImport);
+  // Financial view only applies to native data — an actual import is
+  // already in this format by definition, so the toggle is disabled then.
+  const showFinancialColumns = importMode || financialView;
+
+  // Native data recomputed into the exact same shape Loyverse's own
+  // reports use (cost/profit/margin, discount & tax prorated per item) —
+  // see computeLoyverseStyleReport in analytics.js for the full
+  // reasoning. Only actually used when financialView is on and there's no
+  // active import, but cheap enough to always compute.
+  const nativeReport = useMemo(
+    () => computeLoyverseStyleReport(filtered, orders, menuItems, filters.dateFrom, filters.dateTo),
+    [filtered, orders, menuItems, filters.dateFrom, filters.dateTo]
+  );
 
   // Imported data is pre-aggregated (daily/category/item totals, not
   // individual transactions) — same table/chart components, but fed from
@@ -76,15 +96,28 @@ export default function Dashboard() {
         }))
         .sort((a, b) => b.revenue - a.revenue);
     }
+    if (financialView) {
+      const source = rowDimension === 'category' ? nativeReport.category_totals : nativeReport.item_totals;
+      return source
+        .map(row => ({
+          name: rowDimension === 'category' ? row.category : row.name,
+          count: row.items_sold, revenue: row.net_sales,
+          avg: null, min: null, max: null, printed: row.items_sold,
+        }))
+        .sort((a, b) => b.revenue - a.revenue);
+    }
     return computeTableMetrics(filtered, rowDimension);
-  }, [importMode, activeImport, rowDimension, filtered]);
+  }, [importMode, activeImport, financialView, nativeReport, rowDimension, filtered]);
 
   const chartData = useMemo(() => {
     if (importMode) {
       return (activeImport.time_series || []).map(t => ({ label: t.label, count: t.net_sales })).reverse();
     }
+    if (financialView) {
+      return nativeReport.time_series.map(t => ({ label: t.label, count: t.net_sales }));
+    }
     return bucketByTime(filtered, granularity, filters.dateFrom, filters.dateTo);
-  }, [importMode, activeImport, filtered, granularity, filters.dateFrom, filters.dateTo]);
+  }, [importMode, activeImport, financialView, nativeReport, filtered, granularity, filters.dateFrom, filters.dateTo]);
 
   const stats = useMemo(() => {
     if (importMode) {
@@ -101,14 +134,26 @@ export default function Dashboard() {
     return { count, revenue, avg, printed: preps.length, pct: count ? Math.round((preps.length / count) * 100) : 0 };
   }, [importMode, activeImport, filtered]);
 
+  const handleExport = () => {
+    const report = importMode ? activeImport : nativeReport;
+    const label = importMode ? activeImport.label : 'brewpos-native';
+    downloadLoyverseFormatCsvs(report, label);
+    toast.success('Downloaded 3 CSVs (Category Sales, Item Sales, Sales Summary)');
+  };
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6 max-w-7xl">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold">Dashboard</h1>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setUploadOpen(true)}>
-            <Upload className="w-4 h-4" /> Import Sales Data
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+              <Download className="w-4 h-4" /> Export (Loyverse format)
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setUploadOpen(true)}>
+              <Upload className="w-4 h-4" /> Import Sales Data
+            </Button>
+          </div>
         </div>
 
         {importMode && (
@@ -164,6 +209,16 @@ export default function Dashboard() {
               </div>
               {!importMode && (
                 <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">View</span>
+                  <ToggleGroup
+                    value={financialView ? 'financial' : 'standard'}
+                    onChange={(v) => setFinancialView(v === 'financial')}
+                    options={[{ k: 'standard', l: 'Standard' }, { k: 'financial', l: 'Loyverse-style' }]}
+                  />
+                </div>
+              )}
+              {!importMode && !financialView && (
+                <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Granularity</span>
                   <ToggleGroup value={granularity} onChange={setGranularity} options={[{ k: 'day', l: 'Day' }, { k: 'hour', l: 'Hour' }, { k: 'minute', l: 'Minute (0–59)' }]} />
                 </div>
@@ -174,7 +229,7 @@ export default function Dashboard() {
               volumeData={chartData}
               prepData={chartData}
               granularity={granularity}
-              importMode={importMode}
+              importMode={showFinancialColumns}
               volumeEmptyMessage={importMode ? 'No Sales Summary data in this import — upload that export to see revenue over time.' : undefined}
             />
             <AnalyticsTable

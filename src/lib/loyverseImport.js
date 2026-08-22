@@ -144,3 +144,77 @@ export function suggestLabelFromFilename(filename) {
   }
   return name.replace(/[_-]+/g, ' ').trim().replace(/\s+/g, ' ');
 }
+
+/** Escapes a CSV field per RFC4180 (wraps in quotes if it contains a
+ * comma, quote, or newline; doubles any internal quotes). */
+function csvField(value) {
+  const s = String(value ?? '');
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function toCsv(headers, rows) {
+  const lines = [headers.map(csvField).join(',')];
+  for (const row of rows) lines.push(row.map(csvField).join(','));
+  return lines.join('\r\n');
+}
+
+const money = (n) => (Number(n) || 0).toFixed(2);
+const pct = (n) => `${(Number(n) || 0).toFixed(2)}%`;
+
+/**
+ * Generates the 3 core Loyverse-format CSVs (Category Sales, Item Sales,
+ * Sales Summary) from a report object shaped like a SalesImport record —
+ * works for both a genuinely imported record and native BrewPOS data
+ * computed via computeLoyverseStyleReport (src/lib/analytics.js), since
+ * both share the same shape. Column order and headers match Loyverse's
+ * own exports exactly, so a real Loyverse export and a BrewPOS export of
+ * the same period can be directly compared or combined.
+ */
+export function exportLoyverseFormatCsvs(report) {
+  const files = {};
+
+  files['category-sales-summary.csv'] = toCsv(
+    ['Category', 'Items sold', 'Gross sales', 'Items refunded', 'Refunds', 'Discounts', 'Net sales', 'Cost of goods', 'Gross profit', 'Margin', 'Taxes'],
+    (report.category_totals || []).map(c => [
+      c.category, c.items_sold.toFixed(3), money(c.gross_sales), '0.000', money(c.refunds),
+      money(c.discounts), money(c.net_sales), money(c.cost), money(c.profit), pct(c.margin), money(c.taxes),
+    ])
+  );
+
+  files['item-sales-summary.csv'] = toCsv(
+    ['Item name', 'SKU', 'Category', 'Items sold', 'Gross sales', 'Items refunded', 'Refunds', 'Discounts', 'Net sales', 'Cost of goods', 'Gross profit', 'Margin', 'Taxes'],
+    (report.item_totals || []).map(i => [
+      i.name, i.sku || '', i.category || '', i.items_sold.toFixed(3), money(i.gross_sales), '0.000', money(i.refunds),
+      money(i.discounts), money(i.net_sales), money(i.cost), money(i.profit), pct(i.margin), money(i.taxes),
+    ])
+  );
+
+  const timeHeader = report.granularity === 'hourly' ? 'Time' : 'Date';
+  files['sales-summary.csv'] = toCsv(
+    [timeHeader, 'Gross sales', 'Refunds', 'Discounts', 'Net sales', 'Cost of goods', 'Gross profit', 'Margin', 'Taxes'],
+    (report.time_series || []).map(t => [
+      t.label, money(t.gross_sales), money(t.refunds), money(t.discounts),
+      money(t.net_sales), money(t.cost), money(t.profit), pct(t.margin), money(t.taxes),
+    ])
+  );
+
+  return files;
+}
+
+/** Triggers a browser download for each generated CSV. */
+export function downloadLoyverseFormatCsvs(report, labelPrefix = 'brewpos') {
+  const files = exportLoyverseFormatCsvs(report);
+  const safePrefix = labelPrefix.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  for (const [filename, content] of Object.entries(files)) {
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safePrefix}-${filename}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
