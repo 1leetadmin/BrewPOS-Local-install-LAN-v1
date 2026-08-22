@@ -49,10 +49,31 @@ export default function SalesImportUpload({ open, onOpenChange, onImported }) {
 
   const removeFile = (idx) => setPending(prev => prev.filter((_, i) => i !== idx));
 
+  // Detects more than one file of the SAME type in one import (e.g. two
+  // Category Sales files with different or overlapping date ranges).
+  // Blindly combining them isn't safe: if the ranges overlap even
+  // partially, summing would double-count real sales. There's no
+  // reliable way to tell "these two are complementary, safe to combine"
+  // from "these overlap" just by parsing — filenames hint at date
+  // ranges but are user-editable and not something to trust for a
+  // decision this consequential. Safest to block and let the person
+  // remove the extra file(s) themselves.
+  const typeCounts = {};
+  for (const p of pending) {
+    if (p.detected.type === 'unknown') continue;
+    typeCounts[p.detected.type] = (typeCounts[p.detected.type] || 0) + 1;
+  }
+  const duplicateTypes = Object.entries(typeCounts).filter(([, count]) => count > 1).map(([type]) => TYPE_LABELS[type]);
+  const hasDuplicates = duplicateTypes.length > 0;
+
   const handleImport = async () => {
     const recognized = pending.filter(p => p.detected.type !== 'unknown');
     if (recognized.length === 0) {
       toast.error('No recognized Loyverse files to import');
+      return;
+    }
+    if (hasDuplicates) {
+      toast.error(`Remove the extra ${duplicateTypes.join(', ')} file(s) first — only one of each type per import`);
       return;
     }
     if (!label.trim()) {
@@ -132,8 +153,16 @@ export default function SalesImportUpload({ open, onOpenChange, onImported }) {
           </div>
         )}
 
-        <Button onClick={handleImport} disabled={importing || pending.length === 0} className="w-full">
-          {importing ? 'Importing…' : 'Import'}
+        {hasDuplicates && (
+          <div className="px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/30 text-xs text-destructive">
+            More than one {duplicateTypes.join(', ')} file here — if their date ranges overlap at all,
+            combining both would double-count real sales. Remove the extra one(s) above before importing
+            (e.g. keep just the file covering the full date range you want, not the per-day breakdowns too).
+          </div>
+        )}
+
+        <Button onClick={handleImport} disabled={importing || pending.length === 0 || hasDuplicates} className="w-full">
+          {importing ? 'Importing…' : hasDuplicates ? 'Resolve duplicate files above' : 'Import'}
         </Button>
       </DialogContent>
     </Dialog>
